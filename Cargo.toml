@@ -1,0 +1,21 @@
+[workspace]
+members = [ "crates/tutti-cli", "crates/tutti-config","crates/tutti-core"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+
+[workspace.lints.rust]
+unused = "warn"
+unused_imports = "deny"
+dead_code = "warn"
+missing_debug_implementations = "warn"
+missing_docs = "allow"
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+unwrap_used = "deny"
+expect_used = "warn"
