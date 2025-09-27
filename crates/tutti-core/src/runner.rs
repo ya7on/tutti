@@ -7,11 +7,32 @@ use tutti_config::Project;
 
 use crate::{process::BoxStream, CommandSpec, ProcessManager};
 
-async fn follow_output(mut output: BoxStream<Vec<u8>>, rx: Sender<Vec<u8>>) {
+#[derive(Debug)]
+pub enum LogEvent {
+    Log { service_name: String, line: Vec<u8> },
+    Stop { service_name: String },
+}
+
+async fn follow_output(
+    is_stdout: bool,
+    mut output: BoxStream<Vec<u8>>,
+    service_name: String,
+    rx: Sender<LogEvent>,
+) {
     while let Some(line) = output.next().await {
-        if rx.send(line).await.is_err() {
+        if rx
+            .send(LogEvent::Log {
+                service_name: service_name.clone(),
+                line,
+            })
+            .await
+            .is_err()
+        {
             break;
         }
+    }
+    if is_stdout && rx.send(LogEvent::Stop { service_name }).await.is_err() {
+        eprintln!("Failed to send stop event");
     }
 }
 
@@ -35,7 +56,7 @@ impl<M: ProcessManager> Runner<M> {
     /// # Errors
     ///
     /// Returns an error if any of the services fail to start.
-    pub async fn up(&mut self) -> anyhow::Result<Receiver<Vec<u8>>> {
+    pub async fn up(&mut self) -> anyhow::Result<Receiver<LogEvent>> {
         let (tx, rx) = mpsc::channel(10);
 
         for (name, service) in &self.project.services {
@@ -51,10 +72,18 @@ impl<M: ProcessManager> Runner<M> {
             let stdout = service.stdout;
             let stderr = service.stderr;
 
-            self.tasks
-                .push(tokio::spawn(follow_output(stdout, tx.clone())));
-            self.tasks
-                .push(tokio::spawn(follow_output(stderr, tx.clone())));
+            self.tasks.push(tokio::spawn(follow_output(
+                true,
+                stdout,
+                name.clone(),
+                tx.clone(),
+            )));
+            self.tasks.push(tokio::spawn(follow_output(
+                false,
+                stderr,
+                name.clone(),
+                tx.clone(),
+            )));
         }
 
         Ok(rx)

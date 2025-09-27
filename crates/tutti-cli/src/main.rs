@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use tutti_config::load_from_path;
-use tutti_core::{Runner, UnixProcessManager};
+use tutti_core::{LogEvent, Runner, UnixProcessManager};
 
 mod config;
 
@@ -20,8 +20,15 @@ async fn main() -> Result<()> {
 
             tokio::spawn(async move {
                 while let Some(log) = logs.recv().await {
-                    let string = String::from_utf8_lossy(&log);
-                    println!("{string}");
+                    match log {
+                        LogEvent::Log { service_name, line } => {
+                            let string = String::from_utf8_lossy(&line);
+                            print!("[{service_name}] {string}");
+                        }
+                        LogEvent::Stop { service_name } => {
+                            println!("{service_name} stopped");
+                        }
+                    }
                 }
             });
 

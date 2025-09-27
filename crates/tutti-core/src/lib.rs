@@ -3,5 +3,5 @@ mod runner;
 mod types;
 
 pub use process::{unix::UnixProcessManager, CommandSpec, ProcessManager};
-pub use runner::Runner;
+pub use runner::{LogEvent, Runner};
 pub use types::{ServiceState, Status};
