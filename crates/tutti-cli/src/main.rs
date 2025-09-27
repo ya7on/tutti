@@ -32,14 +32,14 @@ async fn main() -> Result<()> {
                 let task = tokio::spawn(async move {
                     while let Some(line) = spawned.stdout.next().await {
                         let s = String::from_utf8(line).unwrap_or_default();
-                        print!("[{}] {}", key, s);
+                        print!("[{key}] {s}");
                     }
                 });
                 running.push(task);
             }
 
             for task in running {
-                task.await.unwrap();
+                task.await?;
             }
         }
     }
