@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::pin::Pin;
 use std::{path::PathBuf, time::Duration};
 
-mod unix;
+pub mod unix;
 
 pub type BoxStream<T> = Pin<Box<dyn Stream<Item = T> + Send>>;
 

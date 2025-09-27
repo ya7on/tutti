@@ -1,0 +1,4 @@
+version = 1
+
+[services.echo]
+cmd = ["echo","hello world"]

@@ -11,14 +11,25 @@ use tokio_util::io::ReaderStream;
 
 use super::{CommandSpec, ProcId, ProcessManager, Spawned};
 
+#[derive(Debug)]
 struct ChildRec {
     child: Child,
     pgid: libc::pid_t,
 }
 
+/// Unix-specific process manager.
+#[derive(Debug)]
 pub struct UnixProcessManager {
     // TODO: refactor
     processes: Vec<Option<ChildRec>>,
+}
+
+impl UnixProcessManager {
+    pub fn new() -> Self {
+        Self {
+            processes: Vec::new(),
+        }
+    }
 }
 
 #[async_trait::async_trait]
