@@ -14,5 +14,7 @@ libc = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["io"] }
 
+tutti-config = { path = "../tutti-config", default-features = false }
+
 [lints]
 workspace = true
