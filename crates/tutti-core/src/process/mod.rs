@@ -30,6 +30,8 @@ impl Debug for Spawned {
         f.debug_struct("Spawned")
             .field("id", &self.id)
             .field("pid", &self.pid)
+            .field("stdout", &"<stream>")
+            .field("stderr", &"<stream>")
             .finish()
     }
 }

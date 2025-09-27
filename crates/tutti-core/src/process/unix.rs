@@ -24,7 +24,14 @@ pub struct UnixProcessManager {
     processes: Vec<Option<ChildRec>>,
 }
 
+impl Default for UnixProcessManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UnixProcessManager {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             processes: Vec::new(),
@@ -68,7 +75,6 @@ impl ProcessManager for UnixProcessManager {
         let mut child = cmd.spawn()?;
 
         let pid = child.id();
-        let pgid = pid.ok_or_else(|| anyhow::anyhow!("spawned process has no pid"))? as libc::pid_t;
 
         let stdout = child
             .stdout
@@ -85,7 +91,12 @@ impl ProcessManager for UnixProcessManager {
             .filter_map(|res| async move { res.ok().map(|b| b.to_vec()) });
 
         let id = ProcId(self.processes.len() as u64);
-        self.processes.push(Some(ChildRec { child, pgid }));
+        self.processes.push(Some(ChildRec {
+            child,
+            pgid: libc::pid_t::try_from(
+                pid.ok_or_else(|| anyhow::anyhow!("spawned process has no pid"))?,
+            )?,
+        }));
 
         Ok(Spawned {
             id,
@@ -98,10 +109,10 @@ impl ProcessManager for UnixProcessManager {
     async fn shutdown(&mut self, id: ProcId) -> anyhow::Result<()> {
         let proc = self
             .processes
-            .get(id.0 as usize)
-            .ok_or_else(|| anyhow::anyhow!("unknown process id {:?}", id))?
+            .get(usize::try_from(id.0)?)
+            .ok_or_else(|| anyhow::anyhow!("unknown process id {id:?}"))?
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("already shutdown process id {:?}", id))?;
+            .ok_or_else(|| anyhow::anyhow!("already shutdown process id {id:?}"))?;
 
         #[allow(unsafe_code)]
         unsafe {
@@ -115,16 +126,17 @@ impl ProcessManager for UnixProcessManager {
     }
 
     async fn wait(&mut self, id: ProcId, d: Duration) -> anyhow::Result<Option<i32>> {
+        let index = usize::try_from(id.0)?;
         let proc = self
             .processes
-            .get_mut(id.0 as usize)
-            .ok_or_else(|| anyhow::anyhow!("unknown process id {:?}", id))?
+            .get_mut(index)
+            .ok_or_else(|| anyhow::anyhow!("unknown process id {id:?}"))?
             .as_mut()
-            .ok_or_else(|| anyhow::anyhow!("already shutdown process id {:?}", id))?;
+            .ok_or_else(|| anyhow::anyhow!("already shutdown process id {id:?}"))?;
         let start = Instant::now();
         loop {
             if let Ok(Some(code)) = proc.child.try_wait() {
-                self.processes[id.0 as usize] = None;
+                self.processes[index] = None;
                 return Ok(Some(code.code().unwrap_or_default()));
             }
 
@@ -138,10 +150,10 @@ impl ProcessManager for UnixProcessManager {
     async fn kill(&mut self, id: ProcId) -> anyhow::Result<()> {
         let proc = self
             .processes
-            .get(id.0 as usize)
-            .ok_or_else(|| anyhow::anyhow!("unknown process id {:?}", id))?
+            .get(usize::try_from(id.0)?)
+            .ok_or_else(|| anyhow::anyhow!("unknown process id {id:?}"))?
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("already shutdown process id {:?}", id))?;
+            .ok_or_else(|| anyhow::anyhow!("already shutdown process id {id:?}"))?;
 
         #[allow(unsafe_code)]
         unsafe {

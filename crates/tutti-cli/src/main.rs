@@ -14,10 +14,10 @@ async fn main() -> Result<()> {
     match cli.command {
         config::Commands::Run { file } => {
             let path = std::path::Path::new(&file);
-            let project = load_from_path(path).expect("Failed to load project");
+            let project = load_from_path(path)?;
 
             for (key, service) in project.services {
-                println!("Running service {}", key);
+                println!("Running service {key}");
 
                 process_manager
                     .spawn(CommandSpec {
@@ -26,8 +26,7 @@ async fn main() -> Result<()> {
                         cwd: None,   // TODO
                         env: vec![], // TODO
                     })
-                    .await
-                    .expect("Failed to start service");
+                    .await?;
             }
         }
     }
