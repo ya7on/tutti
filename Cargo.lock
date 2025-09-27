@@ -665,6 +665,7 @@ dependencies = [
  "libc",
  "tokio",
  "tokio-util",
+ "tutti-config",
 ]
 
 [[package]]

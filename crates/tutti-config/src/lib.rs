@@ -1,6 +1,8 @@
 mod model;
 mod raw;
 
+pub use model::Project;
+
 /// Error type for configuration parsing.
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -20,7 +22,7 @@ pub enum ConfigError {
 /// # Errors
 ///
 /// Returns a `ConfigError` if the configuration file cannot be read or parsed.
-pub fn load_from_path(path: &std::path::Path) -> Result<model::Project, ConfigError> {
+pub fn load_from_path(path: &std::path::Path) -> Result<Project, ConfigError> {
     let text = std::fs::read_to_string(path)?;
     parse_auto(&text, path)
 }
@@ -30,7 +32,7 @@ pub fn load_from_path(path: &std::path::Path) -> Result<model::Project, ConfigEr
 /// # Errors
 ///
 /// Returns a `ConfigError` if the configuration string cannot be parsed.
-pub fn parse_auto(text: &str, path: &std::path::Path) -> Result<model::Project, ConfigError> {
+pub fn parse_auto(text: &str, path: &std::path::Path) -> Result<Project, ConfigError> {
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
     match ext {
         #[cfg(feature = "toml")]
@@ -45,7 +47,7 @@ pub fn parse_auto(text: &str, path: &std::path::Path) -> Result<model::Project, 
 ///
 /// Returns a `ConfigError` if the configuration string cannot be parsed.
 #[cfg(feature = "toml")]
-pub fn parse_toml(config: &str) -> Result<model::Project, ConfigError> {
+pub fn parse_toml(config: &str) -> Result<Project, ConfigError> {
     let raw_project = toml::from_str::<raw::RawProject>(config)?;
     raw_project.try_into()
 }

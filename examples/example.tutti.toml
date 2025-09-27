@@ -3,5 +3,8 @@ version = 1
 [services.echo]
 cmd = ["echo","hello world"]
 
-[services.long]
-cmd = ["bash", "-c", "echo before sleep && sleep 3 && echo after sleep"]
+[services.long1]
+cmd = ["bash", "-c", "echo before sleep 1 second && sleep 1 && echo after sleep"]
+
+[services.long2]
+cmd = ["bash", "-c", "echo before sleep 3 seconds && sleep 3 && echo after sleep"]
