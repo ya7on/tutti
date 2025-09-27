@@ -2,3 +2,6 @@ version = 1
 
 [services.echo]
 cmd = ["echo","hello world"]
+
+[services.long]
+cmd = ["bash", "-c", "echo before sleep && sleep 3 && echo after sleep"]
