@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-/// CLI для tutti
+/// CLI for tutti
 #[derive(Parser, Debug)]
 #[command(name = "tutti", version, about = "Local service orchestrator")]
 pub struct Cli {
@@ -10,9 +10,9 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Запускает проект по указанному конфигу
+    /// Start the project using the specified configuration
     Run {
-        /// Путь к конфиг-файлу (TOML/YAML)
+        /// File path to the configuration file (TOML)
         #[arg(short, long)]
         file: String,
     },
