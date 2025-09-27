@@ -7,8 +7,16 @@ edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
+anyhow = { version = "1.0" }
+async-trait = { version = "0.1" }
+bytes = { version = "1.0" }
+futures = { version = "0.3" }
+futures-core = { version = "0.3" }
+libc = { version = "0.2" }
 serde = { version = "1", features = ["derive"] }
 thiserror = { version = "2" }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
 toml = { version = "0.8" }
 
 [workspace.lints.rust]
