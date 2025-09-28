@@ -10,13 +10,22 @@ async fn main() -> Result<()> {
     let cli = config::Cli::parse();
 
     match cli.command {
-        config::Commands::Run { file } => {
+        config::Commands::Run { file, services } => {
             let path = std::path::Path::new(&file);
             let project = load_from_path(path)?;
+
+            if services.is_empty() {
+                for name in &services {
+                    if !project.services.contains_key(name) {
+                        return Err(anyhow::anyhow!("Service {name} not found"));
+                    }
+                }
+            }
+
             let process_manager = UnixProcessManager::new();
             let mut runner = Runner::new(project, process_manager);
 
-            let mut logs = runner.up().await?;
+            let mut logs = runner.up(services).await?;
 
             tokio::spawn(async move {
                 while let Some(log) = logs.recv().await {

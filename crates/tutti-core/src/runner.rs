@@ -56,10 +56,14 @@ impl<M: ProcessManager> Runner<M> {
     /// # Errors
     ///
     /// Returns an error if any of the services fail to start.
-    pub async fn up(&mut self) -> anyhow::Result<Receiver<LogEvent>> {
+    pub async fn up(&mut self, services: Vec<String>) -> anyhow::Result<Receiver<LogEvent>> {
         let (tx, rx) = mpsc::channel(10);
 
         for (name, service) in &self.project.services {
+            if !services.contains(name) && !services.is_empty() {
+                continue;
+            }
+
             let service = self
                 .pm
                 .spawn(CommandSpec {
