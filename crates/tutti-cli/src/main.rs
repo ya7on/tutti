@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use tokio::sync::mpsc;
 use tutti_config::load_from_path;
 use tutti_core::{LogEvent, Runner, UnixProcessManager};
 
@@ -14,7 +15,7 @@ async fn main() -> Result<()> {
             let path = std::path::Path::new(&file);
             let project = load_from_path(path)?;
 
-            if services.is_empty() {
+            if !services.is_empty() {
                 for name in &services {
                     if !project.services.contains_key(name) {
                         return Err(anyhow::anyhow!("Service {name} not found"));
@@ -26,6 +27,15 @@ async fn main() -> Result<()> {
             let mut runner = Runner::new(project, process_manager);
 
             let mut logs = runner.up(services).await?;
+
+            let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
+
+            tokio::spawn(async move {
+                if tokio::signal::ctrl_c().await.is_ok() {
+                    println!("\nReceived Ctrl+C, shutting down services...");
+                    let _ = shutdown_tx.send(()).await;
+                }
+            });
 
             tokio::spawn(async move {
                 while let Some(log) = logs.recv().await {
@@ -41,7 +51,16 @@ async fn main() -> Result<()> {
                 }
             });
 
-            runner.wait().await?;
+            tokio::select! {
+                result = runner.wait() => {
+                    result?;
+                }
+                _ = shutdown_rx.recv() => {
+                    if let Err(err) = runner.down().await {
+                        eprintln!("Error during shutdown: {err}");
+                    }
+                }
+            }
         }
     }
 

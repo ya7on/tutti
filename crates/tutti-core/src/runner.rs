@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    time::Duration,
+};
 
 use futures::StreamExt;
 use tokio::{
@@ -7,7 +10,10 @@ use tokio::{
 };
 use tutti_config::Project;
 
-use crate::{process::BoxStream, CommandSpec, ProcessManager};
+use crate::{
+    process::{BoxStream, ProcId},
+    CommandSpec, ProcessManager,
+};
 
 #[derive(Debug)]
 pub enum LogEvent {
@@ -44,13 +50,20 @@ pub struct Runner<M: ProcessManager> {
     pm: M,
 
     tasks: Vec<JoinHandle<()>>,
+    processes: Vec<ProcId>,
 }
 
 impl<M: ProcessManager> Runner<M> {
     pub fn new(project: Project, pm: M) -> Self {
         let tasks = Vec::with_capacity(project.services.len() * 2);
+        let processes = Vec::with_capacity(project.services.len());
 
-        Self { project, pm, tasks }
+        Self {
+            project,
+            pm,
+            tasks,
+            processes,
+        }
     }
 
     /// Performs topological sort on services considering their dependencies.
@@ -191,9 +204,37 @@ impl<M: ProcessManager> Runner<M> {
                 name.clone(),
                 tx.clone(),
             )));
+            self.processes.push(service.id);
         }
 
         Ok(rx)
+    }
+
+    /// Stops all services.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any of the services fail to stop.
+    pub async fn down(&mut self) -> anyhow::Result<()> {
+        let duration = Duration::from_millis(100);
+
+        for id in self.processes.drain(..) {
+            println!("Stopping process {id:?}");
+            if self.pm.wait(id, duration).await?.is_some() {
+                println!("process {id:?} already stopped");
+                continue;
+            }
+
+            self.pm.shutdown(id).await?;
+            if let Some(exit_code) = self.pm.wait(id, duration).await? {
+                println!("process {id:?} stopped with {exit_code} code");
+            } else {
+                self.pm.kill(id).await?;
+                println!("process {id:?} killed");
+            }
+        }
+
+        Ok(())
     }
 
     /// Waits for all services to exit.

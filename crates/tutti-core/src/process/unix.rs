@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use futures::StreamExt;
-use libc::{killpg, setsid, SIGKILL, SIGTERM};
+use libc::{killpg, setsid, SIGINT, SIGKILL};
 use tokio::{
     io::BufReader,
     process::{Child, Command},
@@ -116,7 +116,7 @@ impl ProcessManager for UnixProcessManager {
 
         #[allow(unsafe_code)]
         unsafe {
-            let rc = killpg(proc.pgid, SIGTERM);
+            let rc = killpg(proc.pgid, SIGINT);
             if rc == -1 {
                 return Err(std::io::Error::last_os_error().into());
             }
