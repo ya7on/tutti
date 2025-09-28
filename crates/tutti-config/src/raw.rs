@@ -16,4 +16,5 @@ fn default_version() -> u32 {
 #[derive(Deserialize)]
 pub(crate) struct RawService {
     pub cmd: Vec<String>,
+    pub deps: Option<Vec<String>>,
 }

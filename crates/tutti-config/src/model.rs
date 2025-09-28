@@ -12,6 +12,7 @@ pub struct Project {
 pub struct Service {
     pub name: String,
     pub cmd: Vec<String>,
+    pub deps: Vec<String>,
 }
 
 impl TryFrom<RawProject> for Project {
@@ -39,6 +40,7 @@ impl TryFrom<RawProject> for Project {
                     Service {
                         name,
                         cmd: raw_service.cmd,
+                        deps: raw_service.deps.unwrap_or_default(),
                     },
                 ))
             })

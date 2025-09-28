@@ -1,7 +1,7 @@
 mod model;
 mod raw;
 
-pub use model::Project;
+pub use model::{Project, Service};
 
 /// Error type for configuration parsing.
 #[derive(Debug, thiserror::Error)]
