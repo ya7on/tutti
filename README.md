@@ -10,6 +10,7 @@ Lightweight CLI tool for orchestrating processes – run, coordinate, and monito
 
   [services.service1]
   cmd = ["command1", "arg1", "arg2"]
+  deps = ["service2"]
 
   [services.service2]
   cmd = ["command2", "arg1", "arg2"]
