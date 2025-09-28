@@ -1,0 +1,10 @@
+version = 1
+
+[services.build]
+cmd = ["cargo", "build"]
+
+[services.test]
+cmd = ["cargo", "test", "--workspace", "--all-features", "--verbose"]
+
+[services.lint]
+cmd = ["cargo", "clippy", "--workspace", "--bins", "--lib", "--all-features", "--", "-D", "warnings"]
