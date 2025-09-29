@@ -1,0 +1,31 @@
+name: Documentation report
+description: Something wrong with documentation.
+title: "Docs: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this report!
+  - type: input
+    id: url
+    attributes:
+      label: Document url
+      description: Please fill this input with url to page with error
+      placeholder: README.md
+    validations:
+      required: false
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong
+      description: What confused you?
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Possible solution
+      description: If it's possible please specify how do you see good way to fix it
+    validations:
+      required: false
