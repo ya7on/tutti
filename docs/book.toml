@@ -4,7 +4,7 @@ author = "ya7on"
 description = "Lightweight CLI for orchestrating local microservices"
 language = "en"
 multilingual = false
-src = "src"
+src = "."
 
 [build]
 build-dir = "book"
