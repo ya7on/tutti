@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::Deserialize;
 
@@ -16,5 +16,7 @@ fn default_version() -> u32 {
 #[derive(Deserialize)]
 pub(crate) struct RawService {
     pub cmd: Vec<String>,
+    pub cwd: Option<String>,
+    pub env: Option<HashMap<String, String>>,
     pub deps: Option<Vec<String>>,
 }

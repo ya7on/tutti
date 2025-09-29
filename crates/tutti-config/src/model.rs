@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    path::PathBuf,
+};
 
 use crate::{raw::RawProject, ConfigError};
 
@@ -12,6 +15,8 @@ pub struct Project {
 pub struct Service {
     pub name: String,
     pub cmd: Vec<String>,
+    pub cwd: Option<PathBuf>,
+    pub env: Option<HashMap<String, String>>,
     pub deps: Vec<String>,
 }
 
@@ -40,6 +45,8 @@ impl TryFrom<RawProject> for Project {
                     Service {
                         name,
                         cmd: raw_service.cmd,
+                        cwd: raw_service.cwd.and_then(|cwd| cwd.parse().ok()),
+                        env: raw_service.env,
                         deps: raw_service.deps.unwrap_or_default(),
                     },
                 ))

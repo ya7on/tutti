@@ -4,6 +4,10 @@ version = 1
 cmd = ["echo","hello world"]
 deps = ["long1"]
 
+[services.env]
+cmd = ["printenv", "TEST"]
+env = { "TEST" = "hello world" }
+
 [services.long1]
 cmd = ["bash", "-c", "echo before sleep 1 second && sleep 1 && echo after sleep"]
 deps = ["long2"]

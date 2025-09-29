@@ -185,8 +185,12 @@ impl<M: ProcessManager> Runner<M> {
                 .spawn(CommandSpec {
                     name: name.to_owned(),
                     cmd: service.cmd.clone(),
-                    cwd: None,   // TODO
-                    env: vec![], // TODO
+                    cwd: service.cwd.clone(),
+                    env: service
+                        .env
+                        .clone()
+                        .map(|h| h.into_iter().collect())
+                        .unwrap_or_default(),
                 })
                 .await?;
             let stdout = service.stdout;
