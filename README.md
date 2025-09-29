@@ -15,7 +15,9 @@ Lightweight CLI tool for orchestrating processes – run, coordinate, and monito
 
   [services.service2]
   cmd = ["command2", "arg1", "arg2"]
-  env = { KEY3 = "VALUE3", KEY4 = "VALUE4" }
+  [services.service2.env]
+  KEY3 = "VALUE3"
+  KEY4 = "VALUE4"
   ```
 2. Run `tutti` with the configuration file:
 
