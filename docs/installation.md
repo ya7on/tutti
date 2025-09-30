@@ -1,12 +1,25 @@
 # Installation
 
-There are several ways to install Tutti:
+## Via Cargo
 
-* From source:
-  ```bash
-  cargo build --release
-  ```
+The easiest way to install tutti-cli:
 
-* Download prebuilt binaries from the [Releases](https://github.com/ya7on/tutti/releases) page.
+```bash
+cargo install tutti-cli
+```
 
-After installation you can run `tutti --help` to check available commands.
+## Prebuilt Binaries
+
+Download prebuilt releases from the [Releases](https://github.com/ya7on/tutti/releases) page.
+
+## From Source
+
+Clone the repository and build:
+
+```bash
+git clone https://github.com/ya7on/tutti
+cd tutti
+cargo build --release
+```
+
+The binary will be available at `target/release/tutti-cli`.
