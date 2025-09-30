@@ -4,43 +4,107 @@
 [![GitHub License](https://img.shields.io/github/license/ya7on/tutti)](LICENSE)
 [![CI](https://github.com/ya7on/tutti/actions/workflows/rust.yml/badge.svg)](https://github.com/ya7on/tutti/actions/workflows/rust.yml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/ya7on/tutti/docs.yml?label=docs)](https://ya7on.github.io/tutti)
-[![GitHub top language](https://img.shields.io/github/languages/top/ya7on/tutti)](README)
-[![Crates.io Size](https://img.shields.io/crates/size/tutti-cli?label=binary%20size)](README)
 
-Lightweight CLI tool for orchestrating processes – run, coordinate, and monitor multiple local processes with ease.
+A lightweight CLI tool for orchestrating local processes. Start multiple services with one command, handle dependencies automatically, and see all logs in one place.
+
+## Quick Start
+
+Install:
+```bash
+cargo install tutti-cli
+```
+
+Create a `tutti.toml` config:
+```toml
+version = 1
+
+[services.api]
+cmd = ["python", "app.py"]
+env = { PORT = "3000" }
+
+[services.frontend]
+cmd = ["npm", "start"]
+deps = ["api"]
+cwd = "./frontend"
+```
+
+Run:
+```bash
+tutti-cli run -f tutti.toml
+```
+
+## What is Tutti
+
+Tutti solves the common developer problem of managing multiple local services. Instead of opening several terminals and remembering which services to start in what order, you define everything in a simple config file.
 
 ## Installation
 
-You can install `tutti-cli` using Cargo:
-
-```sh
-$ cargo install tutti-cli
+### From crates.io
+```bash
+cargo install tutti-cli
 ```
+
+### From source
+```bash
+git clone https://github.com/ya7on/tutti
+cd tutti
+cargo build --release
+# Binary will be at target/release/tutti-cli
+```
+
+## Basic Usage
+
+**Start all services:**
+```bash
+tutti-cli run -f tutti.toml
+```
+
+**Start specific services (and their dependencies):**
+```bash
+tutti-cli run -f tutti.toml frontend api
+```
+
+**Example output:**
+```
+[database] Starting PostgreSQL on port 5432
+[api] Server listening on http://localhost:3000
+[frontend] Development server started on port 8080
+```
+
+## Configuration Format
+
+Services are defined in TOML format:
+
+```toml
+version = 1
+
+[services.database]
+cmd = ["postgres", "-D", "./data"]
+
+[services.api]
+cmd = ["python", "server.py"]
+deps = ["database"]
+env = { DATABASE_URL = "postgresql://localhost/mydb" }
+cwd = "./backend"
+
+[services.frontend]
+cmd = ["npm", "run", "dev"]
+deps = ["api"]
+cwd = "./frontend"
+```
+
+**Configuration options:**
+- `cmd` (required) - Command and arguments to run
+- `deps` (optional) - List of service dependencies
+- `env` (optional) - Environment variables
+- `cwd` (optional) - Working directory
 
 ## Documentation
 
-Documentation is available at https://ya7on.github.io/tutti
+Full documentation with examples and advanced configuration options:
 
-## Usage
+**https://ya7on.github.io/tutti**
 
-1. Create a configuration file (e.g., `tutti.toml`) with the following format:
+## License
 
-  ```toml
-  version = 1
-
-  [services.service1]
-  cmd = ["command1", "arg1", "arg2"]
-  env = { KEY1 = "VALUE1", KEY2 = "VALUE2" }
-  deps = ["service2"]
-
-  [services.service2]
-  cmd = ["command2", "arg1", "arg2"]
-  [services.service2.env]
-  KEY3 = "VALUE3"
-  KEY4 = "VALUE4"
-  ```
-2. Run `tutti` with the configuration file:
-
-  ```sh
-  $ tutti-cli run -f tutti.toml
-  ```
+Licensed under [MIT License](LICENSE)
