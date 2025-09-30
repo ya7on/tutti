@@ -1,6 +1,7 @@
 [package]
 name = "tutti-cli"
-version = "0.1.0"
+description = "Command-line interface for Tutti"
+version = "0.1.1"
 edition.workspace = true
 license.workspace = true
 
@@ -11,8 +12,8 @@ colored = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 
-tutti-config = { path = "../tutti-config", features = ["toml"] }
-tutti-core =   { path = "../tutti-core" }
+tutti-config = { version = "0.1.1", path = "../tutti-config", features = ["toml"] }
+tutti-core =   { version = "0.1.1", path = "../tutti-core" }
 
 [lints]
 workspace = true

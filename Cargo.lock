@@ -643,7 +643,7 @@ checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
 name = "tutti-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "tutti-config"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "thiserror",
@@ -665,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "tutti-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-trait",

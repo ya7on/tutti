@@ -1,6 +1,7 @@
 [package]
 name = "tutti-config"
-version = "0.1.0"
+description = "Configuration management for Tutti"
+version = "0.1.1"
 edition.workspace = true
 license.workspace = true
 
