@@ -1,6 +1,14 @@
 # tutti
 Lightweight CLI tool for orchestrating processes – run, coordinate, and monitor multiple local processes with ease.
 
+## Installation
+
+You can install `tutti-cli` using Cargo:
+
+```sh
+$ cargo install tutti-cli
+```
+
 ## Usage
 
 1. Create a configuration file (e.g., `tutti.toml`) with the following format:
@@ -22,5 +30,5 @@ Lightweight CLI tool for orchestrating processes – run, coordinate, and monito
 2. Run `tutti` with the configuration file:
 
   ```sh
-  $ cargo run -- -f tutti.toml
+  $ tutti-cli -f tutti.toml
   ```
