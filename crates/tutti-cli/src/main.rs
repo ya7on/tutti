@@ -1,10 +1,33 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use anyhow::Result;
 use clap::Parser;
+use colored::{Color, Colorize};
 use tokio::sync::mpsc;
 use tutti_config::load_from_path;
 use tutti_core::{LogEvent, Runner, UnixProcessManager};
 
 mod config;
+
+fn string_to_color(s: &str) -> Color {
+    let colors = [
+        Color::Green,
+        Color::Blue,
+        Color::Magenta,
+        Color::Cyan,
+        Color::BrightGreen,
+        Color::BrightBlue,
+        Color::BrightMagenta,
+        Color::BrightCyan,
+    ];
+
+    let mut hasher = DefaultHasher::new();
+    s.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    let idx = usize::try_from(hash).unwrap_or_default() % colors.len();
+    colors[idx]
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -32,7 +55,10 @@ async fn main() -> Result<()> {
 
             tokio::spawn(async move {
                 if tokio::signal::ctrl_c().await.is_ok() {
-                    println!("\nReceived Ctrl+C, shutting down services...");
+                    let line = "Received Ctrl+C, shutting down services..."
+                        .black()
+                        .on_yellow();
+                    println!("\n{line}");
                     let _ = shutdown_tx.send(()).await;
                 }
             });
@@ -42,10 +68,17 @@ async fn main() -> Result<()> {
                     match log {
                         LogEvent::Log { service_name, line } => {
                             let string = String::from_utf8_lossy(&line);
-                            print!("[{service_name}] {string}");
+                            for line in string.lines() {
+                                let prefix = format!("[{service_name}]")
+                                    .color(string_to_color(&service_name));
+                                println!("{prefix} {line}");
+                            }
                         }
                         LogEvent::Stop { service_name } => {
-                            println!("{service_name} stopped");
+                            let line = format!("{service_name} stopped")
+                                .black()
+                                .on_color(string_to_color(&service_name));
+                            println!("{line}");
                         }
                     }
                 }

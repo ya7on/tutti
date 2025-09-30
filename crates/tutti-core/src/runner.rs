@@ -3,6 +3,7 @@ use std::{
     time::Duration,
 };
 
+use colored::Colorize;
 use futures::StreamExt;
 use tokio::{
     sync::mpsc::{self, Receiver, Sender},
@@ -231,10 +232,14 @@ impl<M: ProcessManager> Runner<M> {
 
             self.pm.shutdown(id).await?;
             if let Some(exit_code) = self.pm.wait(id, duration).await? {
-                println!("process {id:?} stopped with {exit_code} code");
+                let line = format!("process {id:?} stopped with {exit_code} code")
+                    .black()
+                    .on_yellow();
+                println!("{line}");
             } else {
                 self.pm.kill(id).await?;
-                println!("process {id:?} killed");
+                let line = format!("process {id:?} killed").black().on_red();
+                println!("{line}");
             }
         }
 
