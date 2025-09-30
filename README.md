@@ -30,5 +30,5 @@ $ cargo install tutti-cli
 2. Run `tutti` with the configuration file:
 
   ```sh
-  $ tutti-cli -f tutti.toml
+  $ tutti-cli run -f tutti.toml
   ```
