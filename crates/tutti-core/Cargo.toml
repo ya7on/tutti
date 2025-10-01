@@ -1,7 +1,8 @@
 [package]
 name = "tutti-core"
 description = "Core functionality for Tutti"
-version = "0.1.1"
+repository = "https://github.com/ya7on/tutti"
+version = "0.1.2"
 edition.workspace = true
 license.workspace = true
 
@@ -15,7 +16,7 @@ libc = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["io"] }
 
-tutti-config = { version = "0.1.1", path = "../tutti-config", default-features = false }
+tutti-config = { version = "0.1.2", path = "../tutti-config", default-features = false }
 
 [lints]
 workspace = true

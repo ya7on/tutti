@@ -1,7 +1,10 @@
 [package]
 name = "tutti-cli"
 description = "Command-line interface for Tutti"
-version = "0.1.1"
+repository = "https://github.com/ya7on/tutti"
+documentation = "https://ya7on.github.io/tutti"
+categories = ["command-line-interface", "command-line-utilities", "development-tools", "development-tools::build-utils"]
+version = "0.1.2"
 edition.workspace = true
 license.workspace = true
 
@@ -12,8 +15,8 @@ colored = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
 
-tutti-config = { version = "0.1.1", path = "../tutti-config", features = ["toml"] }
-tutti-core =   { version = "0.1.1", path = "../tutti-core" }
+tutti-config = { version = "0.1.2", path = "../tutti-config", features = ["toml"] }
+tutti-core =   { version = "0.1.2", path = "../tutti-core" }
 
 [lints]
 workspace = true

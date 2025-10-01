@@ -1,7 +1,8 @@
 [package]
 name = "tutti-config"
 description = "Configuration management for Tutti"
-version = "0.1.1"
+repository = "https://github.com/ya7on/tutti"
+version = "0.1.2"
 edition.workspace = true
 license.workspace = true
 
