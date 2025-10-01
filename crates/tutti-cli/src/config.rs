@@ -14,7 +14,7 @@ pub enum Commands {
     Run {
         /// File path to the configuration file (TOML)
         #[arg(short, long)]
-        file: String,
+        file: Option<String>,
 
         /// Services to start
         services: Vec<String>,

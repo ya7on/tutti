@@ -9,6 +9,8 @@ use tutti_core::{LogEvent, Runner, UnixProcessManager};
 
 mod config;
 
+const DEFAULT_FILENAMES: [&str; 3] = ["tutti.toml", "tutti.config.toml", "Tutti.toml"];
+
 fn string_to_color(s: &str) -> Color {
     let colors = [
         Color::Green,
@@ -35,6 +37,14 @@ async fn main() -> Result<()> {
 
     match cli.command {
         config::Commands::Run { file, services } => {
+            let file = file.unwrap_or_else(|| {
+                for filename in DEFAULT_FILENAMES {
+                    if std::path::Path::new(filename).exists() {
+                        return filename.to_string();
+                    }
+                }
+                "tutti.toml".to_string()
+            });
             let path = std::path::Path::new(&file);
             let project = load_from_path(path)?;
 
