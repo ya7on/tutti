@@ -16,6 +16,10 @@ pub enum Commands {
         #[arg(short, long)]
         file: Option<String>,
 
+        /// Timeout for killing services (in seconds)
+        #[arg(short, long)]
+        kill_timeout: Option<u64>,
+
         /// Services to start
         services: Vec<String>,
     },

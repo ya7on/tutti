@@ -5,7 +5,7 @@ use clap::Parser;
 use colored::{Color, Colorize};
 use tokio::sync::mpsc;
 use tutti_config::load_from_path;
-use tutti_core::{LogEvent, Runner, UnixProcessManager};
+use tutti_core::{LogEvent, Runner, RunnerConfig, UnixProcessManager};
 
 mod config;
 
@@ -36,7 +36,11 @@ async fn main() -> Result<()> {
     let cli = config::Cli::parse();
 
     match cli.command {
-        config::Commands::Run { file, services } => {
+        config::Commands::Run {
+            file,
+            services,
+            kill_timeout,
+        } => {
             let file = file.unwrap_or_else(|| {
                 for filename in DEFAULT_FILENAMES {
                     if std::path::Path::new(filename).exists() {
@@ -57,7 +61,7 @@ async fn main() -> Result<()> {
             }
 
             let process_manager = UnixProcessManager::new();
-            let mut runner = Runner::new(project, process_manager);
+            let mut runner = Runner::new(project, process_manager, RunnerConfig { kill_timeout });
 
             let mut logs = runner.up(services).await?;
 

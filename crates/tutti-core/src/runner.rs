@@ -16,6 +16,8 @@ use crate::{
     CommandSpec, ProcessManager,
 };
 
+const DEFAULT_KILL_TIMEOUT: u64 = 10;
+
 #[derive(Debug)]
 pub enum LogEvent {
     Log { service_name: String, line: Vec<u8> },
@@ -46,16 +48,24 @@ async fn follow_output(
 }
 
 #[derive(Debug)]
+pub struct RunnerConfig {
+    /// Timeout for killing services (in seconds)
+    pub kill_timeout: Option<u64>,
+}
+
+#[derive(Debug)]
 pub struct Runner<M: ProcessManager> {
     project: Project,
     pm: M,
 
     tasks: Vec<JoinHandle<()>>,
     processes: Vec<ProcId>,
+
+    config: RunnerConfig,
 }
 
 impl<M: ProcessManager> Runner<M> {
-    pub fn new(project: Project, pm: M) -> Self {
+    pub fn new(project: Project, pm: M, config: RunnerConfig) -> Self {
         let tasks = Vec::with_capacity(project.services.len() * 2);
         let processes = Vec::with_capacity(project.services.len());
 
@@ -64,6 +74,7 @@ impl<M: ProcessManager> Runner<M> {
             pm,
             tasks,
             processes,
+            config,
         }
     }
 
@@ -221,7 +232,8 @@ impl<M: ProcessManager> Runner<M> {
     ///
     /// Returns an error if any of the services fail to stop.
     pub async fn down(&mut self) -> anyhow::Result<()> {
-        let duration = Duration::from_millis(100);
+        let duration =
+            Duration::from_secs(self.config.kill_timeout.unwrap_or(DEFAULT_KILL_TIMEOUT));
 
         for id in self.processes.drain(..) {
             let line = format!("Stopping process {id:?}").yellow();
