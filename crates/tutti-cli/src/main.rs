@@ -55,9 +55,7 @@ async fn main() -> Result<()> {
 
             tokio::spawn(async move {
                 if tokio::signal::ctrl_c().await.is_ok() {
-                    let line = "Received Ctrl+C, shutting down services..."
-                        .black()
-                        .on_yellow();
+                    let line = "Received Ctrl+C, shutting down services...".yellow();
                     println!("\n{line}");
                     let _ = shutdown_tx.send(()).await;
                 }
@@ -76,8 +74,7 @@ async fn main() -> Result<()> {
                         }
                         LogEvent::Stop { service_name } => {
                             let line = format!("{service_name} stopped")
-                                .black()
-                                .on_color(string_to_color(&service_name));
+                                .color(string_to_color(&service_name));
                             println!("{line}");
                         }
                     }

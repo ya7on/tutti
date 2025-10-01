@@ -224,17 +224,17 @@ impl<M: ProcessManager> Runner<M> {
         let duration = Duration::from_millis(100);
 
         for id in self.processes.drain(..) {
-            println!("Stopping process {id:?}");
+            let line = format!("Stopping process {id:?}").yellow();
+            println!("{line}");
             if self.pm.wait(id, duration).await?.is_some() {
-                println!("process {id:?} already stopped");
+                let line = format!("process {id:?} already stopped").yellow();
+                println!("{line}");
                 continue;
             }
 
             self.pm.shutdown(id).await?;
             if let Some(exit_code) = self.pm.wait(id, duration).await? {
-                let line = format!("process {id:?} stopped with {exit_code} code")
-                    .black()
-                    .on_yellow();
+                let line = format!("process {id:?} stopped with {exit_code} code").yellow();
                 println!("{line}");
             } else {
                 self.pm.kill(id).await?;
