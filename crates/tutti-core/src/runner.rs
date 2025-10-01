@@ -59,7 +59,7 @@ pub struct Runner<M: ProcessManager> {
     pm: M,
 
     tasks: Vec<JoinHandle<()>>,
-    processes: Vec<ProcId>,
+    processes: Vec<(String, ProcId)>,
 
     config: RunnerConfig,
 }
@@ -220,7 +220,7 @@ impl<M: ProcessManager> Runner<M> {
                 name.clone(),
                 tx.clone(),
             )));
-            self.processes.push(service.id);
+            self.processes.push((name.to_owned(), service.id));
         }
 
         Ok(rx)
@@ -235,22 +235,22 @@ impl<M: ProcessManager> Runner<M> {
         let duration =
             Duration::from_secs(self.config.kill_timeout.unwrap_or(DEFAULT_KILL_TIMEOUT));
 
-        for id in self.processes.drain(..) {
-            let line = format!("Stopping process {id:?}").yellow();
+        for (name, id) in self.processes.drain(..) {
+            let line = format!("Stopping service {name:?}").yellow();
             println!("{line}");
             if self.pm.wait(id, duration).await?.is_some() {
-                let line = format!("process {id:?} already stopped").yellow();
+                let line = format!("service {name:?} already stopped").yellow();
                 println!("{line}");
                 continue;
             }
 
             self.pm.shutdown(id).await?;
             if let Some(exit_code) = self.pm.wait(id, duration).await? {
-                let line = format!("process {id:?} stopped with {exit_code} code").yellow();
+                let line = format!("service {name:?} stopped with {exit_code} code").yellow();
                 println!("{line}");
             } else {
                 self.pm.kill(id).await?;
-                let line = format!("process {id:?} killed").black().on_red();
+                let line = format!("service {name:?} killed").black().on_red();
                 println!("{line}");
             }
         }
