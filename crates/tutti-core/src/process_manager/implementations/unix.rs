@@ -9,7 +9,10 @@ use tokio::{
 };
 use tokio_util::io::ReaderStream;
 
-use super::{CommandSpec, ProcId, ProcessManager, Spawned};
+use crate::process_manager::{
+    base::ProcessManager,
+    types::{CommandSpec, ProcId, Spawned},
+};
 
 #[derive(Debug)]
 struct ChildRec {
@@ -163,7 +166,6 @@ impl ProcessManager for UnixProcessManager {
             }
         }
 
-        let _ = self.wait(id, Duration::from_millis(10)).await;
         Ok(())
     }
 }

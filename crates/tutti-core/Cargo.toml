@@ -17,6 +17,7 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["io"] }
 
 tutti-config = { version = "0.1.2", path = "../tutti-config", default-features = false }
+tutti-types = { version = "0.1.2", path = "../tutti-types", default-features = false }
 
 [lints]
 workspace = true

@@ -1,9 +1,6 @@
-use futures_core::Stream;
-use std::fmt::Debug;
-use std::pin::Pin;
-use std::{path::PathBuf, time::Duration};
+use std::{fmt::Debug, path::PathBuf, pin::Pin};
 
-pub mod unix;
+use futures::Stream;
 
 pub type BoxStream<T> = Pin<Box<dyn Stream<Item = T> + Send>>;
 
@@ -34,16 +31,4 @@ impl Debug for Spawned {
             .field("stderr", &"<stream>")
             .finish()
     }
-}
-
-#[async_trait::async_trait]
-pub trait ProcessManager: Send + Sync {
-    /// Spawn a new process.
-    async fn spawn(&mut self, spec: CommandSpec) -> anyhow::Result<Spawned>;
-    /// Gracefully shutdown a process.
-    async fn shutdown(&mut self, id: ProcId) -> anyhow::Result<()>;
-    /// Wait for a process to exit.
-    async fn wait(&mut self, id: ProcId, d: Duration) -> anyhow::Result<Option<i32>>;
-    /// Forcefully kill a process.
-    async fn kill(&mut self, id: ProcId) -> anyhow::Result<()>;
 }
