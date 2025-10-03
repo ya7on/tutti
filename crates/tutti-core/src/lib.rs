@@ -1,7 +1,7 @@
-mod process;
-mod runner;
-mod types;
+mod error;
+mod process_manager;
+mod supervisor;
 
-pub use process::{unix::UnixProcessManager, CommandSpec, ProcessManager};
-pub use runner::{LogEvent, Runner, RunnerConfig};
-pub use types::{ServiceState, Status};
+#[cfg(unix)]
+pub use process_manager::UnixProcessManager;
+pub use process_manager::{CommandSpec, ProcessManager};

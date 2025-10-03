@@ -676,7 +676,12 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tutti-config",
+ "tutti-types",
 ]
+
+[[package]]
+name = "tutti-types"
+version = "0.1.2"
 
 [[package]]
 name = "unicode-ident"

@@ -1,0 +1,10 @@
+[package]
+name = "tutti-types"
+version = "0.1.2"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
