@@ -17,8 +17,10 @@ libc = { version = "0.2" }
 serde = { version = "1", features = ["derive"] }
 thiserror = { version = "2" }
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features = ["io"] }
 toml = { version = "0.8" }
+tracing = { version = "0.1" }
 
 [workspace.lints.rust]
 unused = { level = "warn", priority = -1 }

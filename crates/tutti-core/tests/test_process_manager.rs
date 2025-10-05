@@ -158,8 +158,18 @@ async fn test_process_manager_sigkill() {
         .await
         .unwrap();
 
+    // Wait for the signal handler to be installed
+    let mut stdout = out.stdout;
+    let mut lines_read = 0;
+    while let Some(_) = stdout.next().await {
+        lines_read += 1;
+        if lines_read == 3 {
+            break;
+        }
+    }
+
     pm.shutdown(out.id).await.unwrap();
-    let result = pm.wait(out.id, Duration::from_millis(100)).await.unwrap();
+    let result = pm.wait(out.id, Duration::from_millis(1000)).await.unwrap();
     assert_eq!(result, None);
     pm.kill(out.id).await.unwrap();
     let result = pm.wait(out.id, Duration::from_millis(100)).await.unwrap();

@@ -14,7 +14,9 @@ futures = { workspace = true }
 futures-core = { workspace = true }
 libc = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
+tracing = { workspace = true }
 
 tutti-config = { version = "0.1.2", path = "../tutti-config", default-features = false }
 tutti-types = { version = "0.1.2", path = "../tutti-types", default-features = false }
