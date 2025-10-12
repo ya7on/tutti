@@ -1,3 +1,4 @@
+mod background;
 mod commands;
 mod main;
 

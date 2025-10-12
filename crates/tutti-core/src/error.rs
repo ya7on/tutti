@@ -1,0 +1,12 @@
+use tutti_types::ProjectId;
+
+pub type Result<R, E = Error> = std::result::Result<R, E>;
+
+#[derive(Debug)]
+pub enum Error {
+    InternalTransportError(String),
+    IOError(std::io::Error),
+    ProjectNotFound(ProjectId),
+    ServiceNotFound(ProjectId, String),
+    CircularDependencyDetected,
+}

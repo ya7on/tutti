@@ -715,7 +715,6 @@ dependencies = [
 name = "tutti-core"
 version = "0.1.2"
 dependencies = [
- "anyhow",
  "async-trait",
  "colored",
  "futures",

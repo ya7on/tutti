@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::{CommandSpec, ProcId, ProcessManager, Spawned};
+use crate::{error::Result, CommandSpec, ProcId, ProcessManager, Spawned};
 
 #[derive(Default)]
 pub struct MockProcessManager {
@@ -12,7 +12,7 @@ pub struct MockProcessManager {
 
 #[async_trait]
 impl ProcessManager for MockProcessManager {
-    async fn spawn(&mut self, spec: CommandSpec) -> anyhow::Result<Spawned> {
+    async fn spawn(&mut self, spec: CommandSpec) -> Result<Spawned> {
         self.storage.push(spec);
         let (_, stdout) = tokio::sync::mpsc::channel(1);
         let (_, stderr) = tokio::sync::mpsc::channel(1);
@@ -23,13 +23,13 @@ impl ProcessManager for MockProcessManager {
             pid: None,
         })
     }
-    async fn shutdown(&mut self, id: ProcId) -> anyhow::Result<()> {
+    async fn shutdown(&mut self, id: ProcId) -> Result<()> {
         todo!()
     }
-    async fn wait(&mut self, id: ProcId, d: Duration) -> anyhow::Result<Option<i32>> {
+    async fn wait(&mut self, id: ProcId, d: Duration) -> Result<Option<i32>> {
         todo!()
     }
-    async fn kill(&mut self, id: ProcId) -> anyhow::Result<()> {
+    async fn kill(&mut self, id: ProcId) -> Result<()> {
         todo!()
     }
 }
