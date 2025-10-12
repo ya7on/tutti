@@ -13,9 +13,25 @@ pub enum SupervisorCommand {
         project_id: ProjectId,
         services: Vec<String>,
     },
-    // EndOfLogs {
+    EndOfLogs {
+        project_id: ProjectId,
+        service: String,
+    },
+    HealthCheckSuccess {
+        project_id: ProjectId,
+        service: String,
+    },
+    // HealthCheckFailure {
     //     project_id: ProjectId,
     //     service: String,
     // },
-    // HealthCheck
+}
+
+#[derive(Debug)]
+pub enum SupervisorEvent {
+    Log {
+        project_id: ProjectId,
+        service: String,
+        message: String,
+    },
 }

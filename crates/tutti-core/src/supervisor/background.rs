@@ -1,15 +1,28 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use tutti_types::{Project, ProjectId};
+use futures::StreamExt;
+use tutti_types::{Project, ProjectId, Service};
 
 use crate::{
     error::{Error, Result},
-    supervisor::{
-        main::{RunningService, Status},
-        SupervisorCommand,
-    },
-    CommandSpec, ProcessManager,
+    supervisor::{commands::SupervisorEvent, SupervisorCommand},
+    CommandSpec, ProcId, ProcessManager,
 };
+
+#[derive(Debug, Clone)]
+pub enum Status {
+    Waiting { wait_for: Vec<String> },
+    Starting,
+    Running,
+    Stopped,
+}
+
+#[derive(Debug, Clone)]
+pub struct RunningService {
+    pub name: String,
+    pub pid: Option<ProcId>,
+    pub status: Status,
+}
 
 #[derive(Debug)]
 pub struct SupervisorBackground<P: ProcessManager> {
@@ -19,6 +32,8 @@ pub struct SupervisorBackground<P: ProcessManager> {
 
     commands_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
     commands_rx: tokio::sync::mpsc::Receiver<SupervisorCommand>,
+
+    output_tx: tokio::sync::mpsc::Sender<SupervisorEvent>,
 }
 
 impl<P: ProcessManager> SupervisorBackground<P> {
@@ -26,14 +41,19 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         process_manager: P,
         commands_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
         commands_rx: tokio::sync::mpsc::Receiver<SupervisorCommand>,
-    ) -> Self {
-        Self {
-            process_manager,
-            storage: HashMap::new(),
-            config: HashMap::new(),
-            commands_tx,
-            commands_rx,
-        }
+    ) -> (Self, tokio::sync::mpsc::Receiver<SupervisorEvent>) {
+        let (output_tx, output_rx) = tokio::sync::mpsc::channel(100);
+        (
+            Self {
+                process_manager,
+                storage: HashMap::new(),
+                config: HashMap::new(),
+                commands_tx,
+                commands_rx,
+                output_tx,
+            },
+            output_rx,
+        )
     }
 
     pub async fn run(&mut self) {
@@ -47,71 +67,255 @@ impl<P: ProcessManager> SupervisorBackground<P> {
     async fn handle_commands(&mut self, command: SupervisorCommand) -> Result<()> {
         match command {
             SupervisorCommand::UpdateConfig { project_id, config } => {
-                tracing::info!("Updating config for project {project_id:?}");
-                self.config.insert(project_id, config);
-
+                self.update_config(project_id, config)?;
                 Ok(())
             }
             SupervisorCommand::Up {
                 project_id,
                 services,
             } => {
-                tracing::info!("Starting {services:?} services for project {project_id:?}");
+                self.up(project_id, services).await?;
+                Ok(())
+            }
+            SupervisorCommand::EndOfLogs {
+                project_id,
+                service,
+            } => {
+                let Some(running_services) = self.storage.get_mut(&project_id) else {
+                    return Err(Error::ProjectNotFound(project_id));
+                };
+                let Some(service) = running_services.iter_mut().find(|s| s.name == service) else {
+                    return Err(Error::ServiceNotFound(project_id, service));
+                };
 
-                let Some(config) = self.config.get(&project_id) else {
+                service.status = Status::Stopped;
+
+                // TODO: Restart policy
+
+                Ok(())
+            }
+            SupervisorCommand::HealthCheckSuccess {
+                project_id,
+                service: updated_service,
+            } => {
+                let Some(mut running_services) = self.storage.get(&project_id).cloned() else {
                     return Err(Error::ProjectNotFound(project_id));
                 };
 
-                let services = Self::toposort(config, &services)?;
-                let storage = self.storage.entry(project_id.clone()).or_default();
-                let spawned = storage
-                    .iter()
-                    .map(|service| service.name.clone())
-                    .collect::<HashSet<_>>();
-
-                for service_name in services {
-                    let Some(service) = config.services.get(&service_name) else {
-                        return Err(Error::ServiceNotFound(project_id, service_name));
+                {
+                    let Some(service) = running_services
+                        .iter_mut()
+                        .find(|s| s.name == updated_service)
+                    else {
+                        return Err(Error::ServiceNotFound(project_id, updated_service));
                     };
 
-                    if spawned.contains(&service_name) {
-                        tracing::info!("Service {service_name:?} is already running");
-                        continue;
-                    }
+                    service.status = Status::Running;
+                }
 
-                    // TODO: Recalculate dependencies count for already running services
-                    if service.deps.is_empty() {
-                        let process = self
-                            .process_manager
-                            .spawn(CommandSpec {
-                                name: service_name.to_owned(),
-                                cmd: service.cmd.clone(),
-                                cwd: service.cwd.clone(),
-                                env: service
-                                    .env
-                                    .clone()
-                                    .map(|h| h.into_iter().collect())
-                                    .unwrap_or_default(),
-                            })
-                            .await?;
+                for running_service in running_services.iter_mut() {
+                    if let Status::Waiting { wait_for } = &mut running_service.status {
+                        let new_wait_for = wait_for
+                            .clone()
+                            .into_iter()
+                            .filter(|item| item != &updated_service)
+                            .collect();
 
-                        storage.push(RunningService {
-                            name: service_name.clone(),
-                            spawned: Some(process),
-                            status: Status::Starting,
-                        });
-                    } else {
-                        storage.push(RunningService {
-                            name: service_name.clone(),
-                            spawned: None,
-                            status: Status::Waiting,
-                        });
+                        *wait_for = new_wait_for;
+
+                        if wait_for.is_empty() {
+                            running_service.status = Status::Running;
+
+                            let Some(config) = self.config.get(&project_id).cloned() else {
+                                return Err(Error::ProjectNotFound(project_id));
+                            };
+                            let Some(service) = config.services.get(&running_service.name) else {
+                                return Err(Error::ServiceNotFound(
+                                    project_id,
+                                    running_service.name.clone(),
+                                ));
+                            };
+
+                            let proc_id = self
+                                .start_service(
+                                    service.clone(),
+                                    running_service.name.clone(),
+                                    project_id.clone(),
+                                )
+                                .await?;
+
+                            running_service.pid = Some(proc_id);
+                            running_service.status = Status::Starting;
+                        }
                     }
                 }
 
-                todo!()
+                self.storage.insert(project_id, running_services);
+
+                Ok(())
             }
         }
+    }
+
+    fn update_config(&mut self, project_id: ProjectId, new_config: Project) -> Result<()> {
+        tracing::info!("Updating config for project {project_id:?}");
+
+        self.config.insert(project_id, new_config);
+
+        Ok(())
+    }
+
+    async fn up(&mut self, project_id: ProjectId, services: Vec<String>) -> Result<()> {
+        tracing::info!("Starting {services:?} services for project {project_id:?}");
+
+        let Some(config) = self.config.get(&project_id).cloned() else {
+            return Err(Error::ProjectNotFound(project_id));
+        };
+
+        let services = Self::toposort(&config, &services)?;
+
+        let spawned: HashSet<_> = self
+            .storage
+            .get(&project_id)
+            .map(|v| v.iter().map(|s| s.name.clone()).collect())
+            .unwrap_or_default();
+
+        // TODO: Recalculate dependencies
+        for service_name in services {
+            let Some(service) = config.services.get(&service_name) else {
+                return Err(Error::ServiceNotFound(project_id, service_name));
+            };
+
+            if spawned.contains(&service_name) {
+                tracing::info!("Service {service_name:?} is already running");
+                continue;
+            }
+
+            if service.deps.is_empty() {
+                let proc_id = self
+                    .start_service(service.clone(), service_name.clone(), project_id.clone())
+                    .await?;
+
+                self.storage
+                    .entry(project_id.clone())
+                    .or_default()
+                    .push(RunningService {
+                        name: service_name.clone(),
+                        pid: Some(proc_id),
+                        status: Status::Starting,
+                    });
+            } else {
+                self.storage
+                    .entry(project_id.clone())
+                    .or_default()
+                    .push(RunningService {
+                        name: service_name.clone(),
+                        pid: None,
+                        status: Status::Waiting {
+                            wait_for: service.deps.clone(),
+                        },
+                    });
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn start_service(
+        &mut self,
+        service: Service,
+        service_name: String,
+        project_id: ProjectId,
+    ) -> Result<ProcId> {
+        let process = self
+            .process_manager
+            .spawn(CommandSpec {
+                name: service_name.to_owned(),
+                cmd: service.cmd.clone(),
+                cwd: service.cwd.clone(),
+                env: service
+                    .env
+                    .clone()
+                    .map(|h| h.into_iter().collect())
+                    .unwrap_or_default(),
+            })
+            .await?;
+
+        {
+            let commands_tx = self.commands_tx.clone();
+            let output_tx = self.output_tx.clone();
+            let mut stdout = process.stdout;
+            let project_id_clone = project_id.clone();
+            let service_name_clone = service_name.clone();
+            tokio::spawn(async move {
+                while let Some(command) = stdout.next().await {
+                    let log = String::from_utf8_lossy(&command);
+                    output_tx
+                        .send(SupervisorEvent::Log {
+                            project_id: project_id_clone.clone(),
+                            service: service_name_clone.clone(),
+                            message: log.to_string(),
+                        })
+                        .await
+                        .unwrap();
+                }
+                commands_tx
+                    .send(SupervisorCommand::EndOfLogs {
+                        project_id: project_id_clone.clone(),
+                        service: service_name_clone.clone(),
+                    })
+                    .await
+                    .unwrap();
+            });
+        }
+
+        {
+            let commands_tx = self.commands_tx.clone();
+            let output_tx = self.output_tx.clone();
+            let mut stderr = process.stderr;
+            let project_id_clone = project_id.clone();
+            let service_name_clone = service_name.clone();
+            tokio::spawn(async move {
+                while let Some(command) = stderr.next().await {
+                    let log = String::from_utf8_lossy(&command);
+                    output_tx
+                        .send(SupervisorEvent::Log {
+                            project_id: project_id_clone.clone(),
+                            service: service_name_clone.clone(),
+                            message: log.to_string(),
+                        })
+                        .await
+                        .unwrap();
+                }
+                commands_tx
+                    .send(SupervisorCommand::EndOfLogs {
+                        project_id: project_id_clone.clone(),
+                        service: service_name_clone.clone(),
+                    })
+                    .await
+                    .unwrap();
+            });
+        }
+
+        {
+            let commands_tx = self.commands_tx.clone();
+            let healthcheck = service.healthcheck.clone();
+            let project_id_clone = project_id.clone();
+            let service_name_clone = service_name.clone();
+            tokio::spawn(async move {
+                if healthcheck.is_none() {
+                    commands_tx
+                        .send(SupervisorCommand::HealthCheckSuccess {
+                            project_id: project_id_clone.clone(),
+                            service: service_name_clone.clone(),
+                        })
+                        .await
+                        .unwrap();
+                }
+            });
+        }
+
+        Ok(process.id)
     }
 
     fn toposort(config: &Project, services: &[String]) -> Result<Vec<String>> {
@@ -213,6 +417,7 @@ mod tests {
                             cwd: Some("/".parse().unwrap()),
                             env: None,
                             deps: vec!["B".to_string(), "C".to_string()],
+                            healthcheck: None,
                         },
                     ),
                     (
@@ -222,6 +427,7 @@ mod tests {
                             cwd: Some("/".parse().unwrap()),
                             env: None,
                             deps: vec![],
+                            healthcheck: None,
                         },
                     ),
                     (
@@ -231,6 +437,7 @@ mod tests {
                             cwd: Some("/".parse().unwrap()),
                             env: None,
                             deps: vec!["D".to_string(), "E".to_string()],
+                            healthcheck: None,
                         },
                     ),
                     (
@@ -240,6 +447,7 @@ mod tests {
                             cwd: Some("/".parse().unwrap()),
                             env: None,
                             deps: vec!["F".to_string()],
+                            healthcheck: None,
                         },
                     ),
                     (
@@ -249,6 +457,7 @@ mod tests {
                             cwd: Some("/".parse().unwrap()),
                             env: None,
                             deps: vec![],
+                            healthcheck: None,
                         },
                     ),
                     (
@@ -258,6 +467,7 @@ mod tests {
                             cwd: Some("/".parse().unwrap()),
                             env: None,
                             deps: vec![],
+                            healthcheck: None,
                         },
                     ),
                 ]

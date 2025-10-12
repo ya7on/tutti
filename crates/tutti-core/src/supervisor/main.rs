@@ -1,53 +1,42 @@
-use std::collections::{HashMap, HashSet};
-
-use tokio::{sync::mpsc, task::JoinHandle};
-use tutti_types::{Project, ProjectId};
+use tokio::sync::mpsc;
+use tutti_types::Project;
 
 use crate::{
     error::{Error, Result},
     process_manager::ProcessManager,
-    supervisor::{background::SupervisorBackground, commands::SupervisorCommand},
-    Spawned,
+    supervisor::{
+        background::SupervisorBackground,
+        commands::{SupervisorCommand, SupervisorEvent},
+    },
 };
 
 #[derive(Debug)]
-pub enum Status {
-    Waiting,
-    Starting,
-    Running,
-    Stopped,
-}
-
-#[derive(Debug)]
-pub struct RunningService {
-    pub name: String,
-    pub spawned: Option<Spawned>,
-    pub status: Status,
-}
-
-#[derive(Debug)]
 pub struct Supervisor {
-    commands_task: JoinHandle<()>,
     commands_tx: mpsc::Sender<SupervisorCommand>,
+    output_rx: mpsc::Receiver<SupervisorEvent>,
 }
 
 impl Supervisor {
     pub async fn new<P: ProcessManager + Send + Sync + 'static>(process_manager: P) -> Self {
         let (commands_tx, commands_rx) = mpsc::channel::<SupervisorCommand>(100);
-        let mut inner =
+        let (mut inner, output_rx) =
             SupervisorBackground::new(process_manager, commands_tx.clone(), commands_rx);
 
-        let commands_task = tokio::spawn(async move {
+        tokio::spawn(async move {
             inner.run().await;
         });
 
         Self {
-            commands_task,
             commands_tx,
+            output_rx,
         }
     }
 
-    async fn up(&mut self, project: Project, services: Vec<String>) -> Result<()> {
+    pub fn output(&mut self) -> &mut mpsc::Receiver<SupervisorEvent> {
+        &mut self.output_rx
+    }
+
+    pub async fn up(&mut self, project: Project, services: Vec<String>) -> Result<()> {
         tracing::trace!(
             "Received up command for project {project:?} to start services {services:?}"
         );
