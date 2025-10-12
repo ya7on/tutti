@@ -81,77 +81,14 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 project_id,
                 service,
             } => {
-                let Some(running_services) = self.storage.get_mut(&project_id) else {
-                    return Err(Error::ProjectNotFound(project_id));
-                };
-                let Some(service) = running_services.iter_mut().find(|s| s.name == service) else {
-                    return Err(Error::ServiceNotFound(project_id, service));
-                };
-
-                service.status = Status::Stopped;
-
-                // TODO: Restart policy
-
+                self.end_of_logs(project_id, service).await?;
                 Ok(())
             }
             SupervisorCommand::HealthCheckSuccess {
                 project_id,
-                service: updated_service,
+                service,
             } => {
-                let Some(mut running_services) = self.storage.get(&project_id).cloned() else {
-                    return Err(Error::ProjectNotFound(project_id));
-                };
-
-                {
-                    let Some(service) = running_services
-                        .iter_mut()
-                        .find(|s| s.name == updated_service)
-                    else {
-                        return Err(Error::ServiceNotFound(project_id, updated_service));
-                    };
-
-                    service.status = Status::Running;
-                }
-
-                for running_service in running_services.iter_mut() {
-                    if let Status::Waiting { wait_for } = &mut running_service.status {
-                        let new_wait_for = wait_for
-                            .clone()
-                            .into_iter()
-                            .filter(|item| item != &updated_service)
-                            .collect();
-
-                        *wait_for = new_wait_for;
-
-                        if wait_for.is_empty() {
-                            running_service.status = Status::Running;
-
-                            let Some(config) = self.config.get(&project_id).cloned() else {
-                                return Err(Error::ProjectNotFound(project_id));
-                            };
-                            let Some(service) = config.services.get(&running_service.name) else {
-                                return Err(Error::ServiceNotFound(
-                                    project_id,
-                                    running_service.name.clone(),
-                                ));
-                            };
-
-                            let proc_id = self
-                                .start_service(
-                                    service.clone(),
-                                    running_service.name.clone(),
-                                    project_id.clone(),
-                                )
-                                .await?;
-
-                            running_service.pid = Some(proc_id);
-                            running_service.status = Status::Starting;
-                        }
-                    }
-                }
-
-                self.storage.insert(project_id, running_services);
-
+                self.health_check_success(project_id, service).await?;
                 Ok(())
             }
         }
@@ -257,7 +194,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                             message: log.to_string(),
                         })
                         .await
-                        .unwrap();
+                        .unwrap(); // TODO: Handle error properly
                 }
                 commands_tx
                     .send(SupervisorCommand::EndOfLogs {
@@ -265,7 +202,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                         service: service_name_clone.clone(),
                     })
                     .await
-                    .unwrap();
+                    .unwrap(); // TODO: Handle error properly
             });
         }
 
@@ -285,7 +222,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                             message: log.to_string(),
                         })
                         .await
-                        .unwrap();
+                        .unwrap(); // TODO: Handle error properly
                 }
                 commands_tx
                     .send(SupervisorCommand::EndOfLogs {
@@ -293,7 +230,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                         service: service_name_clone.clone(),
                     })
                     .await
-                    .unwrap();
+                    .unwrap(); // TODO: Handle error properly
             });
         }
 
@@ -310,12 +247,90 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                             service: service_name_clone.clone(),
                         })
                         .await
-                        .unwrap();
+                        .unwrap(); // TODO: Handle error properly
                 }
             });
         }
 
         Ok(process.id)
+    }
+
+    async fn end_of_logs(&mut self, project_id: ProjectId, service: String) -> Result<()> {
+        let Some(running_services) = self.storage.get_mut(&project_id) else {
+            return Err(Error::ProjectNotFound(project_id));
+        };
+        let Some(service) = running_services.iter_mut().find(|s| s.name == service) else {
+            return Err(Error::ServiceNotFound(project_id, service));
+        };
+
+        service.status = Status::Stopped;
+
+        // TODO: Restart policy
+
+        Ok(())
+    }
+
+    async fn health_check_success(
+        &mut self,
+        project_id: ProjectId,
+        updated_service: String,
+    ) -> Result<()> {
+        // TODO: too many clones
+        let Some(mut running_services) = self.storage.get(&project_id).cloned() else {
+            return Err(Error::ProjectNotFound(project_id));
+        };
+
+        {
+            let Some(service) = running_services
+                .iter_mut()
+                .find(|s| s.name == updated_service)
+            else {
+                return Err(Error::ServiceNotFound(project_id, updated_service));
+            };
+
+            service.status = Status::Running;
+        }
+
+        for running_service in running_services.iter_mut() {
+            if let Status::Waiting { wait_for } = &mut running_service.status {
+                let new_wait_for = wait_for
+                    .clone()
+                    .into_iter()
+                    .filter(|item| item != &updated_service)
+                    .collect();
+
+                *wait_for = new_wait_for;
+
+                if wait_for.is_empty() {
+                    running_service.status = Status::Running;
+
+                    let Some(config) = self.config.get(&project_id).cloned() else {
+                        return Err(Error::ProjectNotFound(project_id));
+                    };
+                    let Some(service) = config.services.get(&running_service.name) else {
+                        return Err(Error::ServiceNotFound(
+                            project_id,
+                            running_service.name.clone(),
+                        ));
+                    };
+
+                    let proc_id = self
+                        .start_service(
+                            service.clone(),
+                            running_service.name.clone(),
+                            project_id.clone(),
+                        )
+                        .await?;
+
+                    running_service.pid = Some(proc_id);
+                    running_service.status = Status::Starting;
+                }
+            }
+        }
+
+        self.storage.insert(project_id, running_services);
+
+        Ok(())
     }
 
     fn toposort(config: &Project, services: &[String]) -> Result<Vec<String>> {

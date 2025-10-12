@@ -3,9 +3,9 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use anyhow::Result;
 use clap::Parser;
 use colored::{Color, Colorize};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 use tutti_config::load_from_path;
-use tutti_core::{LogEvent, Runner, RunnerConfig, UnixProcessManager};
+use tutti_core::{Supervisor, UnixProcessManager};
 
 mod config;
 
@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
             });
             let path = std::path::Path::new(&file);
             let project = load_from_path(path)?;
+            // let project_id = ProjectId(path);
 
             if !services.is_empty() {
                 for name in &services {
@@ -61,11 +62,10 @@ async fn main() -> Result<()> {
             }
 
             let process_manager = UnixProcessManager::new();
-            let mut runner = Runner::new(project, process_manager, RunnerConfig { kill_timeout });
+            let (supervisor, mut logs) = Supervisor::new(process_manager).await;
 
-            let mut logs = runner.up(services).await?;
-
-            let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
+            let (watch_tx, mut watch_rx) = watch::channel(());
+            let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1); // TODO watch
 
             tokio::spawn(async move {
                 if tokio::signal::ctrl_c().await.is_ok() {
@@ -77,34 +77,34 @@ async fn main() -> Result<()> {
 
             tokio::spawn(async move {
                 while let Some(log) = logs.recv().await {
-                    match log {
-                        LogEvent::Log { service_name, line } => {
-                            let string = String::from_utf8_lossy(&line);
-                            for line in string.lines() {
-                                let prefix = format!("[{service_name}]")
-                                    .color(string_to_color(&service_name));
-                                println!("{prefix} {line}");
-                            }
-                        }
-                        LogEvent::Stop { service_name } => {
-                            let line = format!("{service_name} stopped")
-                                .color(string_to_color(&service_name));
-                            println!("{line}");
-                        }
-                    }
+                    // match log {
+                    //     LogEvent::Log { service_name, line } => {
+                    //         let string = String::from_utf8_lossy(&line);
+                    //         for line in string.lines() {
+                    //             let prefix = format!("[{service_name}]")
+                    //                 .color(string_to_color(&service_name));
+                    //             println!("{prefix} {line}");
+                    //         }
+                    //     }
+                    //     LogEvent::Stop { service_name } => {
+                    //         let line = format!("{service_name} stopped")
+                    //             .color(string_to_color(&service_name));
+                    //         println!("{line}");
+                    //     }
+                    // }
                 }
             });
 
-            tokio::select! {
-                result = runner.wait() => {
-                    result?;
-                }
-                _ = shutdown_rx.recv() => {
-                    if let Err(err) = runner.down().await {
-                        eprintln!("Error during shutdown: {err}");
-                    }
-                }
-            }
+            // tokio::select! {
+            //     result = supervisor.wait() => {
+            //         result?;
+            //     }
+            //     _ = shutdown_rx.recv() => {
+            //         if let Err(err) = supervisor.down().await {
+            //             eprintln!("Error during shutdown: {err}");
+            //         }
+            //     }
+            // }
         }
     }
 

@@ -12,28 +12,31 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Supervisor {
+    task: tokio::task::JoinHandle<()>,
     commands_tx: mpsc::Sender<SupervisorCommand>,
-    output_rx: mpsc::Receiver<SupervisorEvent>,
 }
 
 impl Supervisor {
-    pub async fn new<P: ProcessManager + Send + Sync + 'static>(process_manager: P) -> Self {
+    pub async fn new<P: ProcessManager + Send + Sync + 'static>(
+        process_manager: P,
+    ) -> (Self, mpsc::Receiver<SupervisorEvent>) {
         let (commands_tx, commands_rx) = mpsc::channel::<SupervisorCommand>(100);
         let (mut inner, output_rx) =
             SupervisorBackground::new(process_manager, commands_tx.clone(), commands_rx);
 
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             inner.run().await;
         });
 
-        Self {
-            commands_tx,
-            output_rx,
-        }
+        (Self { task, commands_tx }, output_rx)
     }
 
-    pub fn output(&mut self) -> &mut mpsc::Receiver<SupervisorEvent> {
-        &mut self.output_rx
+    pub async fn wait(self) -> Result<()> {
+        self.task.await.map_err(|_| Error::Wait)
+    }
+
+    pub async fn down(&mut self, project: Project) -> Result<()> {
+        todo!()
     }
 
     pub async fn up(&mut self, project: Project, services: Vec<String>) -> Result<()> {

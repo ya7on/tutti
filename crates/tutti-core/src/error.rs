@@ -6,6 +6,7 @@ pub type Result<R, E = Error> = std::result::Result<R, E>;
 pub enum Error {
     InternalTransportError(String),
     IOError(std::io::Error),
+    Wait,
     ProjectNotFound(ProjectId),
     ServiceNotFound(ProjectId, String),
     CircularDependencyDetected,
