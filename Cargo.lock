@@ -700,6 +700,7 @@ dependencies = [
  "tokio",
  "tutti-config",
  "tutti-core",
+ "tutti-types",
 ]
 
 [[package]]
@@ -709,6 +710,7 @@ dependencies = [
  "serde",
  "thiserror",
  "toml",
+ "tutti-types",
 ]
 
 [[package]]

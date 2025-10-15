@@ -15,5 +15,7 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 toml = { workspace = true, optional = true }
 
+tutti-types = { version = "0.1.2", path = "../tutti-types", default-features = false }
+
 [lints]
 workspace = true

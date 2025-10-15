@@ -36,7 +36,14 @@ impl Supervisor {
     }
 
     pub async fn down(&mut self, project: Project) -> Result<()> {
-        todo!()
+        self.commands_tx
+            .send(SupervisorCommand::Down {
+                project_id: project.id,
+            })
+            .await
+            .map_err(|err| Error::InternalTransportError(err.to_string()))?;
+
+        Ok(())
     }
 
     pub async fn up(&mut self, project: Project, services: Vec<String>) -> Result<()> {

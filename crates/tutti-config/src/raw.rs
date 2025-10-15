@@ -19,5 +19,5 @@ pub(crate) struct RawService {
     pub cwd: Option<String>,
     pub env: Option<HashMap<String, String>>,
     pub deps: Option<Vec<String>>,
-    // pub healthcheck: Option<()>, // TODO
+    pub healthcheck: Option<()>, // TODO
 }

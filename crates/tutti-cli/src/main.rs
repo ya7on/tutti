@@ -3,7 +3,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use anyhow::Result;
 use clap::Parser;
 use colored::{Color, Colorize};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 use tutti_config::load_from_path;
 use tutti_core::{Supervisor, UnixProcessManager};
 
@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
             });
             let path = std::path::Path::new(&file);
             let project = load_from_path(path)?;
-            // let project_id = ProjectId(path);
 
             if !services.is_empty() {
                 for name in &services {
@@ -62,9 +61,10 @@ async fn main() -> Result<()> {
             }
 
             let process_manager = UnixProcessManager::new();
-            let (supervisor, mut logs) = Supervisor::new(process_manager).await;
+            let (mut supervisor, mut logs) = Supervisor::new(process_manager).await;
 
-            let (watch_tx, mut watch_rx) = watch::channel(());
+            supervisor.up(project, services).await.unwrap();
+
             let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1); // TODO watch
 
             tokio::spawn(async move {
@@ -95,16 +95,16 @@ async fn main() -> Result<()> {
                 }
             });
 
-            // tokio::select! {
-            //     result = supervisor.wait() => {
-            //         result?;
-            //     }
-            //     _ = shutdown_rx.recv() => {
-            //         if let Err(err) = supervisor.down().await {
-            //             eprintln!("Error during shutdown: {err}");
-            //         }
-            //     }
-            // }
+            tokio::select! {
+                result = supervisor.wait() => {
+                    result.unwrap();
+                }
+                _ = shutdown_rx.recv() => {
+                    if let Err(err) = supervisor.down(project).await {
+                        // eprintln!("Error during shutdown: {err}");
+                    }
+                }
+            }
         }
     }
 

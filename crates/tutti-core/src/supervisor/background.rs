@@ -9,7 +9,7 @@ use crate::{
     CommandSpec, ProcId, ProcessManager,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Status {
     Waiting { wait_for: Vec<String> },
     Starting,
@@ -75,6 +75,10 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 services,
             } => {
                 self.up(project_id, services).await?;
+                Ok(())
+            }
+            SupervisorCommand::Down { project_id } => {
+                self.down(project_id).await?;
                 Ok(())
             }
             SupervisorCommand::EndOfLogs {
@@ -155,6 +159,16 @@ impl<P: ProcessManager> SupervisorBackground<P> {
             }
         }
 
+        Ok(())
+    }
+
+    async fn down(&mut self, project_id: ProjectId) -> Result<()> {
+        let services = self.storage.remove(&project_id).unwrap_or_default();
+        for service in services {
+            if service.status == Status::Running {
+                self.process_manager.kill(service.pid.unwrap()).await?;
+            }
+        }
         Ok(())
     }
 

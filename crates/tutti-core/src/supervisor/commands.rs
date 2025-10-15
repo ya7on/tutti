@@ -13,6 +13,9 @@ pub enum SupervisorCommand {
         project_id: ProjectId,
         services: Vec<String>,
     },
+    Down {
+        project_id: ProjectId,
+    },
     EndOfLogs {
         project_id: ProjectId,
         service: String,

@@ -1,30 +1,12 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    path::PathBuf,
-};
+use std::{collections::BTreeMap, path::Path};
+
+use tutti_types::{Project, ProjectId, Service};
 
 use crate::{raw::RawProject, ConfigError};
 
-#[derive(Debug)]
-pub struct Project {
-    pub version: u32,
-    pub services: BTreeMap<String, Service>,
-}
-
-#[derive(Debug)]
-pub struct Service {
-    pub name: String,
-    pub cmd: Vec<String>,
-    pub cwd: Option<PathBuf>,
-    pub env: Option<HashMap<String, String>>,
-    pub deps: Vec<String>,
-}
-
-impl TryFrom<RawProject> for Project {
-    type Error = ConfigError;
-
-    fn try_from(raw_project: RawProject) -> Result<Self, Self::Error> {
-        let services = raw_project
+impl RawProject {
+    pub fn to_project(self, path: &Path) -> Result<Project, ConfigError> {
+        let services = self
             .services
             .into_iter()
             .map(|(name, raw_service)| {
@@ -43,18 +25,19 @@ impl TryFrom<RawProject> for Project {
                 Ok((
                     name.clone(),
                     Service {
-                        name,
                         cmd: raw_service.cmd,
                         cwd: raw_service.cwd.and_then(|cwd| cwd.parse().ok()),
                         env: raw_service.env,
                         deps: raw_service.deps.unwrap_or_default(),
+                        healthcheck: raw_service.healthcheck,
                     },
                 ))
             })
-            .collect::<Result<BTreeMap<String, Service>, Self::Error>>()?;
+            .collect::<Result<BTreeMap<String, Service>, ConfigError>>()?;
 
         Ok(Project {
-            version: raw_project.version,
+            id: ProjectId(path.into()),
+            version: self.version,
             services,
         })
     }
