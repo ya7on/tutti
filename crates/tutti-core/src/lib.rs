@@ -5,4 +5,4 @@ mod supervisor;
 #[cfg(unix)]
 pub use process_manager::UnixProcessManager;
 pub use process_manager::{CommandSpec, ProcId, ProcessManager, Spawned};
-pub use supervisor::{Supervisor, UpResponse};
+pub use supervisor::{Supervisor, SupervisorEvent, UpResponse};

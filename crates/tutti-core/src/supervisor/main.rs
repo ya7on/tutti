@@ -1,4 +1,7 @@
-use tokio::sync::mpsc;
+use tokio::{
+    select,
+    sync::mpsc::{self, Receiver},
+};
 use tutti_types::Project;
 
 use crate::{
@@ -29,10 +32,6 @@ impl Supervisor {
         });
 
         (Self { task, commands_tx }, output_rx)
-    }
-
-    pub async fn wait(self) -> Result<()> {
-        self.task.await.map_err(|_| Error::Wait)
     }
 
     pub async fn down(&mut self, project: Project) -> Result<()> {

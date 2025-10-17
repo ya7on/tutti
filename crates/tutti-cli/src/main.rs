@@ -5,7 +5,7 @@ use clap::Parser;
 use colored::{Color, Colorize};
 use tokio::sync::mpsc;
 use tutti_config::load_from_path;
-use tutti_core::{Supervisor, UnixProcessManager};
+use tutti_core::{Supervisor, SupervisorEvent, UnixProcessManager};
 
 mod config;
 
@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
             let process_manager = UnixProcessManager::new();
             let (mut supervisor, mut logs) = Supervisor::new(process_manager).await;
 
-            supervisor.up(project, services).await.unwrap();
+            supervisor.up(project.clone(), services).await.unwrap();
 
             let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1); // TODO watch
 
@@ -77,34 +77,22 @@ async fn main() -> Result<()> {
 
             tokio::spawn(async move {
                 while let Some(log) = logs.recv().await {
-                    // match log {
-                    //     LogEvent::Log { service_name, line } => {
-                    //         let string = String::from_utf8_lossy(&line);
-                    //         for line in string.lines() {
-                    //             let prefix = format!("[{service_name}]")
-                    //                 .color(string_to_color(&service_name));
-                    //             println!("{prefix} {line}");
-                    //         }
-                    //     }
-                    //     LogEvent::Stop { service_name } => {
-                    //         let line = format!("{service_name} stopped")
-                    //             .color(string_to_color(&service_name));
-                    //         println!("{line}");
-                    //     }
-                    // }
+                    match log {
+                        SupervisorEvent::Log {
+                            message, service, ..
+                        } => {
+                            for line in message.lines() {
+                                let prefix =
+                                    format!("[{service}]").color(string_to_color(&service));
+                                println!("{prefix} {line}");
+                            }
+                        }
+                    }
                 }
             });
 
-            tokio::select! {
-                result = supervisor.wait() => {
-                    result.unwrap();
-                }
-                _ = shutdown_rx.recv() => {
-                    if let Err(err) = supervisor.down(project).await {
-                        // eprintln!("Error during shutdown: {err}");
-                    }
-                }
-            }
+            let _ = shutdown_rx.recv().await;
+            supervisor.down(project).await;
         }
     }
 
