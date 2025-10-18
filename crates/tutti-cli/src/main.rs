@@ -1,11 +1,13 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::{
+    hash::{DefaultHasher, Hash, Hasher},
+    path::PathBuf,
+};
 
 use anyhow::Result;
 use clap::Parser;
-use colored::{Color, Colorize};
-use tokio::sync::mpsc;
-use tutti_config::load_from_path;
-use tutti_core::{Supervisor, SupervisorEvent, UnixProcessManager};
+use colored::Color;
+use tutti_daemon::DaemonRunner;
+use tutti_transport::client::ipc_client::IpcClient;
 
 mod config;
 
@@ -38,8 +40,9 @@ async fn main() -> Result<()> {
     match cli.command {
         config::Commands::Run {
             file,
-            services,
-            kill_timeout,
+            services: _,
+            system_directory,
+            kill_timeout: _,
         } => {
             let file = file.unwrap_or_else(|| {
                 for filename in DEFAULT_FILENAMES {
@@ -49,50 +52,23 @@ async fn main() -> Result<()> {
                 }
                 "tutti.toml".to_string()
             });
-            let path = std::path::Path::new(&file);
-            let project = load_from_path(path)?;
 
-            if !services.is_empty() {
-                for name in &services {
-                    if !project.services.contains_key(name) {
-                        return Err(anyhow::anyhow!("Service {name} not found"));
-                    }
-                }
+            let daemon_runner =
+                DaemonRunner::new(system_directory.as_ref().map(|p| PathBuf::from(p)));
+            daemon_runner.prepare().unwrap();
+
+            let path = PathBuf::from(file);
+            if !IpcClient::check_socket(&path).await {
+                daemon_runner.spawn().unwrap();
             }
 
-            let process_manager = UnixProcessManager::new();
-            let (mut supervisor, mut logs) = Supervisor::new(process_manager).await;
-
-            supervisor.up(project.clone(), services).await.unwrap();
-
-            let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1); // TODO watch
-
-            tokio::spawn(async move {
-                if tokio::signal::ctrl_c().await.is_ok() {
-                    let line = "Received Ctrl+C, shutting down services...".yellow();
-                    println!("\n{line}");
-                    let _ = shutdown_tx.send(()).await;
-                }
-            });
-
-            tokio::spawn(async move {
-                while let Some(log) = logs.recv().await {
-                    match log {
-                        SupervisorEvent::Log {
-                            message, service, ..
-                        } => {
-                            for line in message.lines() {
-                                let prefix =
-                                    format!("[{service}]").color(string_to_color(&service));
-                                println!("{prefix} {line}");
-                            }
-                        }
-                    }
-                }
-            });
-
-            let _ = shutdown_rx.recv().await;
-            supervisor.down(project).await;
+            println!("{:?}", 2);
+        }
+        config::Commands::Daemon { system_directory } => {
+            let daemon_runner =
+                DaemonRunner::new(system_directory.as_ref().map(|p| PathBuf::from(p)));
+            daemon_runner.prepare().unwrap();
+            daemon_runner.start().await.unwrap();
         }
     }
 

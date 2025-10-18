@@ -724,7 +724,8 @@ dependencies = [
  "futures",
  "tokio",
  "tutti-config",
- "tutti-core",
+ "tutti-daemon",
+ "tutti-transport",
  "tutti-types",
 ]
 
@@ -756,8 +757,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tutti-daemon"
+version = "0.1.2"
+dependencies = [
+ "futures-util",
+ "tokio",
+ "tutti-core",
+ "tutti-transport",
+]
+
+[[package]]
 name = "tutti-transport"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "bytes",
  "futures-util",

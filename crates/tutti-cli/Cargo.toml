@@ -16,7 +16,8 @@ futures = { workspace = true }
 tokio = { workspace = true }
 
 tutti-config = { version = "0.1.2", path = "../tutti-config", features = ["toml"] }
-tutti-core = { version = "0.1.2", path = "../tutti-core" }
+tutti-daemon = { version = "0.1.2", path = "../tutti-daemon" }
+tutti-transport = { version = "0.1.2", path = "../tutti-transport" }
 tutti-types = { version = "0.1.2", path = "../tutti-types", default-features = false }
 
 [lints]

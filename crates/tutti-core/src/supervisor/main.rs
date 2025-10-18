@@ -1,7 +1,4 @@
-use tokio::{
-    select,
-    sync::mpsc::{self, Receiver},
-};
+use tokio::sync::mpsc;
 use tutti_types::Project;
 
 use crate::{
@@ -15,7 +12,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct Supervisor {
-    task: tokio::task::JoinHandle<()>,
+    _task: tokio::task::JoinHandle<()>,
     commands_tx: mpsc::Sender<SupervisorCommand>,
 }
 
@@ -31,7 +28,13 @@ impl Supervisor {
             inner.run().await;
         });
 
-        (Self { task, commands_tx }, output_rx)
+        (
+            Self {
+                _task: task,
+                commands_tx,
+            },
+            output_rx,
+        )
     }
 
     pub async fn down(&mut self, project: Project) -> Result<()> {

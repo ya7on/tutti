@@ -1,0 +1,15 @@
+[package]
+name = "tutti-daemon"
+version = "0.1.2"
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+futures-util = { workspace = true, features = ["std", "sink"] }
+
+tutti-core = { version = "0.1.2", path = "../tutti-core" }
+tutti-transport = { version = "0.1.2", path = "../tutti-transport" }
+
+[lints]
+workspace = true

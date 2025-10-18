@@ -19,6 +19,14 @@ pub struct IpcClient {
 }
 
 impl IpcClient {
+    pub async fn check_socket(path: &PathBuf) -> bool {
+        let Ok(socket) = UnixStream::connect(path).await else {
+            return false;
+        };
+
+        true
+    }
+
     pub async fn new(path: PathBuf) -> Self {
         let socket = UnixStream::connect(path).await.unwrap();
 
@@ -70,5 +78,9 @@ impl IpcClient {
             }
         }
         Err(())
+    }
+
+    pub async fn ping(&mut self) -> bool {
+        self.send(TuttiApi::Ping).await.is_ok()
     }
 }

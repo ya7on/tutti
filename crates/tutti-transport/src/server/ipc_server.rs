@@ -10,37 +10,46 @@ use crate::{
     error::TransportResult,
 };
 
-async fn default_handler(_: TuttiApi) -> TransportResult<TuttiApi> {
+async fn default_handler<C: Clone + Send + Sync + 'static>(
+    _: TuttiApi,
+    _: C,
+) -> TransportResult<TuttiApi> {
     todo!()
 }
 
-type Handler = Arc<dyn Fn(TuttiApi) -> BoxFuture<'static, TransportResult<TuttiApi>> + Send + Sync>;
+type Handler<C: Clone + Send + Sync + 'static> =
+    Arc<dyn Fn(TuttiApi, C) -> BoxFuture<'static, TransportResult<TuttiApi>> + Send + Sync>;
 
-pub struct IpcServer {
+pub struct IpcServer<C: Clone + Send + Sync> {
     socket: UnixListener,
-    handler: Handler,
+    handler: Handler<C>,
+    context: C,
 }
 
-impl Debug for IpcServer {
+impl<C: Clone + Debug + Send + Sync + 'static> Debug for IpcServer<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("IpcServer")
             .field("socket", &self.socket)
+            .field("context", &self.context)
             .field("handler", &"[fn]")
             .finish()
     }
 }
 
-impl IpcServer {
-    pub fn new(path: PathBuf) -> Self {
+impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
+    pub fn new(path: PathBuf, context: C) -> Self {
         let socket = UnixListener::bind(path).unwrap();
 
         Self {
             socket,
-            handler: Arc::new(|api: TuttiApi| default_handler(api).boxed()),
+            handler: Arc::new(|api: TuttiApi, context: C| {
+                default_handler::<C>(api, context).boxed()
+            }),
+            context,
         }
     }
 
-    pub fn add_handler(mut self, handler: Handler) -> Self {
+    pub fn add_handler(mut self, handler: Handler<C>) -> Self {
         self.handler = handler;
         self
     }
@@ -50,11 +59,12 @@ impl IpcServer {
             let framed = Framed::new(stream, LengthDelimitedCodec::new());
             let (mut sink, mut stream) = framed.split();
             let handler = self.handler.clone();
+            let context = self.context.clone();
 
             tokio::spawn(async move {
                 while let Some(Ok(body)) = stream.next().await {
                     let message = serde_json::from_slice::<TuttiMessage>(&body).unwrap();
-                    let response = (handler)(message.body).await.unwrap();
+                    let response = (handler)(message.body, context.clone()).await.unwrap();
 
                     let full_response = TuttiMessage {
                         id: message.id,
