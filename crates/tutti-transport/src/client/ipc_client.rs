@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use futures_util::StreamExt;
 use tokio::{net::UnixStream, sync::mpsc, task::JoinHandle};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
@@ -20,12 +21,13 @@ pub struct IpcClient {
 impl IpcClient {
     pub async fn new(path: PathBuf) -> Self {
         let socket = UnixStream::connect(path).await.unwrap();
-        let socket = Framed::new(socket, LengthDelimitedCodec::new());
 
         let (tx, rx) = mpsc::channel::<(TuttiMessage, mpsc::Sender<TuttiMessage>)>(BUFFER_SIZE);
 
         let task = tokio::spawn(async move {
-            IpcClientWorker::new(socket, rx).run().await;
+            let framed = Framed::new(socket, LengthDelimitedCodec::new());
+            let (sink, stream) = framed.split();
+            IpcClientWorker::new(sink, stream, rx).run().await.unwrap();
         });
 
         Self {

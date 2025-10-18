@@ -7,13 +7,13 @@ pub struct TuttiMessage {
     pub body: TuttiApi,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum MessageType {
     Request,
     Response,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum TuttiApi {
     Ping,
     Pong,

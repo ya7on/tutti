@@ -5,29 +5,38 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use tokio::{net::UnixStream, select, sync::mpsc};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    net::UnixStream,
+    select,
+    sync::mpsc,
+};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use crate::{api::TuttiMessage, error::TransportResult};
 
-#[derive(Debug)]
-pub struct IpcClientWorker {
-    sink: SplitSink<Framed<UnixStream, LengthDelimitedCodec>, Bytes>,
-    stream: SplitStream<Framed<UnixStream, LengthDelimitedCodec>>,
+pub type IpcWorkerSink<IO = UnixStream> = SplitSink<Framed<IO, LengthDelimitedCodec>, Bytes>;
+pub type IpcWorkerStream<IO = UnixStream> = SplitStream<Framed<IO, LengthDelimitedCodec>>;
 
-    // socket: Framed<UnixStream, LengthDelimitedCodec>,
+#[derive(Debug)]
+pub struct IpcClientWorker<IO = UnixStream> {
+    sink: IpcWorkerSink<IO>,
+    stream: IpcWorkerStream<IO>,
+
     receiver: mpsc::Receiver<(TuttiMessage, mpsc::Sender<TuttiMessage>)>,
 
     response: HashMap<u32, mpsc::Sender<TuttiMessage>>,
 }
 
-impl IpcClientWorker {
+impl<IO> IpcClientWorker<IO>
+where
+    IO: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     pub fn new(
-        socket: Framed<UnixStream, LengthDelimitedCodec>,
+        sink: IpcWorkerSink<IO>,
+        stream: IpcWorkerStream<IO>,
         receiver: mpsc::Receiver<(TuttiMessage, mpsc::Sender<TuttiMessage>)>,
     ) -> Self {
-        let (sink, stream) = socket.split();
-
         Self {
             sink,
             stream,
@@ -39,11 +48,11 @@ impl IpcClientWorker {
     async fn handle_socket_message(&mut self, message: BytesMut) -> TransportResult<()> {
         let message = serde_json::from_slice::<TuttiMessage>(&message).unwrap();
 
-        if let Some(response) = self.response.get(&message.id) {
+        if let Some(response) = self.response.remove(&message.id) {
             response.send(message).await.unwrap();
         }
 
-        todo!()
+        Ok(())
     }
 
     async fn handle_mpsc_message(
@@ -58,7 +67,7 @@ impl IpcClientWorker {
 
         self.response.insert(message_id, sender);
 
-        todo!()
+        Ok(())
     }
 
     pub async fn run(&mut self) -> TransportResult<()> {
@@ -72,5 +81,85 @@ impl IpcClientWorker {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_util::StreamExt;
+    use tokio::{
+        io::{duplex, DuplexStream},
+        sync::mpsc::error::TryRecvError,
+    };
+
+    use crate::api::{MessageType, TuttiApi};
+
+    use super::*;
+
+    struct PrepareWorker {
+        worker: IpcClientWorker<DuplexStream>,
+        _server_io: DuplexStream,
+    }
+
+    async fn prepare_worker() -> PrepareWorker {
+        let (client_io, server_io) = duplex(64 * 1024);
+        let (_, req_rx) = mpsc::channel::<(TuttiMessage, mpsc::Sender<TuttiMessage>)>(8);
+
+        let framed = Framed::new(client_io, LengthDelimitedCodec::new());
+        let (sink, stream) = framed.split();
+
+        let worker = IpcClientWorker::new(sink, stream, req_rx);
+
+        PrepareWorker {
+            worker,
+            _server_io: server_io,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_worker() {
+        let mut fixture = prepare_worker().await;
+
+        let (tx, mut rx) = mpsc::channel::<TuttiMessage>(8);
+
+        fixture
+            .worker
+            .handle_mpsc_message(
+                TuttiMessage {
+                    id: 42,
+                    req_type: MessageType::Request,
+                    body: TuttiApi::Ping,
+                },
+                tx,
+            )
+            .await
+            .unwrap();
+        {
+            let message = TuttiMessage {
+                id: 69,
+                req_type: MessageType::Response,
+                body: TuttiApi::Pong,
+            };
+            let bytes = BytesMut::from_iter(serde_json::to_vec(&message).unwrap());
+            fixture.worker.handle_socket_message(bytes).await.unwrap();
+        }
+        {
+            let message = TuttiMessage {
+                id: 42,
+                req_type: MessageType::Response,
+                body: TuttiApi::Pong,
+            };
+            let bytes = BytesMut::from_iter(serde_json::to_vec(&message).unwrap());
+            fixture.worker.handle_socket_message(bytes).await.unwrap();
+        }
+
+        let response = rx.recv().await.unwrap();
+        assert_eq!(response.id, 42);
+        assert_eq!(response.req_type, MessageType::Response);
+        assert_eq!(response.body, TuttiApi::Pong);
+
+        let response = rx.try_recv();
+        assert!(response.is_err());
+        assert_eq!(response.err().unwrap(), TryRecvError::Disconnected);
     }
 }
