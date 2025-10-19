@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
             });
 
             let daemon_runner =
-                DaemonRunner::new(system_directory.as_ref().map(|p| PathBuf::from(p)));
+                DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
             daemon_runner.prepare().unwrap();
 
             let path = PathBuf::from(file);
@@ -66,7 +66,7 @@ async fn main() -> Result<()> {
         }
         config::Commands::Daemon { system_directory } => {
             let daemon_runner =
-                DaemonRunner::new(system_directory.as_ref().map(|p| PathBuf::from(p)));
+                DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
             daemon_runner.prepare().unwrap();
             daemon_runner.start().await.unwrap();
         }

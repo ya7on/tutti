@@ -20,6 +20,7 @@ pub struct DaemonRunner {
 }
 
 impl DaemonRunner {
+    #[must_use] 
     pub fn new(system_dir: Option<PathBuf>) -> Self {
         DaemonRunner {
             system: system_dir.unwrap_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR)),
@@ -62,7 +63,7 @@ impl DaemonRunner {
             match message {
                 TuttiApi::Ping => Ok(TuttiApi::Pong),
                 TuttiApi::Up => {
-                    let mut guard = context.supervisor.lock().await;
+                    let guard = context.supervisor.lock().await;
                     // guard.up().await.unwrap();
                     Ok(TuttiApi::Up)
                 }

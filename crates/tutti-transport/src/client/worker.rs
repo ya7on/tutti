@@ -74,10 +74,10 @@ where
         loop {
             select! {
                 Some(Ok(msg)) = self.stream.next() => {
-                    self.handle_socket_message(msg).await?
+                    self.handle_socket_message(msg).await?;
                 }
                 Some((msg, sender)) = self.receiver.recv() => {
-                    self.handle_mpsc_message(msg, sender).await?
+                    self.handle_mpsc_message(msg, sender).await?;
                 }
             }
         }

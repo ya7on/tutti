@@ -4,7 +4,14 @@ pub struct Fanout<T: Clone> {
     subscribers: Vec<Sender<T>>,
 }
 
+impl<T: Clone> Default for Fanout<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Clone> Fanout<T> {
+    #[must_use] 
     pub fn new() -> Self {
         Self {
             subscribers: Vec::new(),

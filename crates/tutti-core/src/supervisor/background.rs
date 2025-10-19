@@ -181,7 +181,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         let process = self
             .process_manager
             .spawn(CommandSpec {
-                name: service_name.to_owned(),
+                name: service_name.clone(),
                 cmd: service.cmd.clone(),
                 cwd: service.cwd.clone(),
                 env: service
@@ -250,7 +250,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
 
         {
             let commands_tx = self.commands_tx.clone();
-            let healthcheck = service.healthcheck.clone();
+            let healthcheck = service.healthcheck;
             let project_id_clone = project_id.clone();
             let service_name_clone = service_name.clone();
             tokio::spawn(async move {
@@ -305,7 +305,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
             service.status = Status::Running;
         }
 
-        for running_service in running_services.iter_mut() {
+        for running_service in &mut running_services {
             if let Status::Waiting { wait_for } = &mut running_service.status {
                 let new_wait_for = wait_for
                     .clone()

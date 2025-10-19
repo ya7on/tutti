@@ -72,19 +72,17 @@ impl ProcessManager for UnixProcessManager {
         cmd.stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
 
-        let mut child = cmd.spawn().map_err(|err| Error::IOError(err))?;
+        let mut child = cmd.spawn().map_err(Error::IOError)?;
 
         let pid = child.id();
 
         let stdout = child.stdout.take().ok_or_else(|| {
-            Error::IOError(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Error::IOError(std::io::Error::other(
                 "stdout not piped",
             ))
         })?;
         let stderr = child.stderr.take().ok_or_else(|| {
-            Error::IOError(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Error::IOError(std::io::Error::other(
                 "stdout not piped",
             ))
         })?;
@@ -98,14 +96,12 @@ impl ProcessManager for UnixProcessManager {
         self.processes.push(Some(ChildRec {
             child,
             pgid: libc::pid_t::try_from(pid.ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "pid not available",
                 ))
             })?)
             .map_err(|_| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "pid not available",
                 ))
             })?,
@@ -123,21 +119,18 @@ impl ProcessManager for UnixProcessManager {
         let proc = self
             .processes
             .get(usize::try_from(id.0).map_err(|_| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "Cannot convert process id to usize",
                 ))
             })?)
             .ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "unknown process id {id:?}",
                 ))
             })?
             .as_ref()
             .ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "already shutdown process id {id:?}",
                 ))
             })?;
@@ -155,8 +148,7 @@ impl ProcessManager for UnixProcessManager {
 
     async fn wait(&mut self, id: ProcId, d: Duration) -> Result<Option<i32>> {
         let index = usize::try_from(id.0).map_err(|_| {
-            Error::IOError(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            Error::IOError(std::io::Error::other(
                 "Cannot convert process id to usize",
             ))
         })?;
@@ -164,15 +156,13 @@ impl ProcessManager for UnixProcessManager {
             .processes
             .get_mut(index)
             .ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "unknown process id {id:?}",
                 ))
             })?
             .as_mut()
             .ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "already shutdown process id {id:?}",
                 ))
             })?;
@@ -195,21 +185,18 @@ impl ProcessManager for UnixProcessManager {
         let proc = self
             .processes
             .get(usize::try_from(id.0).map_err(|_| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "Cannot convert process id to usize",
                 ))
             })?)
             .ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "unknown process id {id:?}",
                 ))
             })?
             .as_ref()
             .ok_or_else(|| {
-                Error::IOError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                Error::IOError(std::io::Error::other(
                     "already shutdown process id {id:?}",
                 ))
             })?;
