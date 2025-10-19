@@ -1,28 +1,27 @@
 use std::{fmt::Debug, path::PathBuf, sync::Arc};
 
 use bytes::Bytes;
-use futures_util::{future::BoxFuture, FutureExt, SinkExt, StreamExt};
+use futures_util::{future::BoxFuture, SinkExt, StreamExt};
 use tokio::net::UnixListener;
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use crate::{
     api::{MessageType, TuttiApi, TuttiMessage},
     error::TransportResult,
+    server::fanout::Fanout,
 };
 
-async fn default_handler<C: Clone + Send + Sync + 'static>(
-    _: TuttiApi,
-    _: C,
-) -> TransportResult<TuttiApi> {
-    todo!()
-}
-
-type Handler<C: Clone + Send + Sync + 'static> =
+type UnaryHandler<C: Clone + Send + Sync + 'static> =
     Arc<dyn Fn(TuttiApi, C) -> BoxFuture<'static, TransportResult<TuttiApi>> + Send + Sync>;
+
+type StreamHandler<C: Clone + Send + Sync + 'static> = Arc<
+    dyn Fn(Fanout<TuttiApi>, C) -> BoxFuture<'static, TransportResult<(TuttiApi)>> + Send + Sync,
+>;
 
 pub struct IpcServer<C: Clone + Send + Sync> {
     socket: UnixListener,
-    handler: Handler<C>,
+    unary_handler: UnaryHandler<C>,
+    stream_handler: StreamHandler<C>,
     context: C,
 }
 
@@ -42,15 +41,19 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
 
         Self {
             socket,
-            handler: Arc::new(|api: TuttiApi, context: C| {
-                default_handler::<C>(api, context).boxed()
-            }),
+            unary_handler: Arc::new(|api: TuttiApi, context: C| todo!()),
+            stream_handler: Arc::new(|fanout: Fanout<TuttiApi>, context: C| todo!()),
             context,
         }
     }
 
-    pub fn add_handler(mut self, handler: Handler<C>) -> Self {
-        self.handler = handler;
+    pub fn add_handler(mut self, handler: UnaryHandler<C>) -> Self {
+        self.unary_handler = handler;
+        self
+    }
+
+    pub fn add_stream_handler(mut self, handler: StreamHandler<C>) -> Self {
+        self.stream_handler = handler;
         self
     }
 
@@ -58,13 +61,15 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
         while let Ok((stream, _)) = self.socket.accept().await {
             let framed = Framed::new(stream, LengthDelimitedCodec::new());
             let (mut sink, mut stream) = framed.split();
-            let handler = self.handler.clone();
-            let context = self.context.clone();
 
+            let unary_handler = self.unary_handler.clone();
+            let context = self.context.clone();
             tokio::spawn(async move {
                 while let Some(Ok(body)) = stream.next().await {
                     let message = serde_json::from_slice::<TuttiMessage>(&body).unwrap();
-                    let response = (handler)(message.body, context.clone()).await.unwrap();
+                    let response = (unary_handler)(message.body, context.clone())
+                        .await
+                        .unwrap();
 
                     let full_response = TuttiMessage {
                         id: message.id,
@@ -78,6 +83,9 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
                         .unwrap();
                 }
             });
+
+            let stream_handler = self.stream_handler.clone();
+            tokio::spawn(async move {});
         }
     }
 }

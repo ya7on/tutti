@@ -13,8 +13,9 @@ pub enum MessageType {
     Response,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum TuttiApi {
     Ping,
     Pong,
+    Up,
 }

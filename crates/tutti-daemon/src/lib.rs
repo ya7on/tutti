@@ -61,6 +61,11 @@ impl DaemonRunner {
         async fn handler(message: TuttiApi, context: Context) -> TransportResult<TuttiApi> {
             match message {
                 TuttiApi::Ping => Ok(TuttiApi::Pong),
+                TuttiApi::Up => {
+                    let mut guard = context.supervisor.lock().await;
+                    // guard.up().await.unwrap();
+                    Ok(TuttiApi::Up)
+                }
                 _ => Err(TransportError::UnknownMessage),
             }
         }
