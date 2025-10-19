@@ -46,7 +46,10 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
     /// # Errors
     /// Returns a `TransportError` if the Unix socket cannot be bound.
     pub fn new(path: PathBuf, context: C) -> TransportResult<Self> {
+        tracing::info!("Creating IPC server");
+
         let socket = UnixListener::bind(path).map_err(TransportError::SocketError)?;
+        tracing::info!("IPC server created");
 
         Ok(Self {
             socket,
@@ -70,12 +73,15 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
     }
 
     pub async fn start(self) {
+        tracing::info!("Starting IPC server");
+
         let fanout = self.fanout.clone();
 
         let stream_handler = self.stream_handler.clone();
         let context = self.context.clone();
         let fanout_clone = fanout.clone();
         tokio::spawn(async move {
+            tracing::info!("Starting IPC server stream handler");
             loop {
                 let Ok(message) = stream_handler(context.clone()).await else {
                     continue;
@@ -91,7 +97,10 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
             }
         });
 
+        tracing::debug!("Listening for IPC connections");
         while let Ok((stream, _)) = self.socket.accept().await {
+            tracing::info!("New IPC client connection");
+
             let framed = Framed::new(stream, LengthDelimitedCodec::new());
             let (mut sink, mut stream) = framed.split();
 

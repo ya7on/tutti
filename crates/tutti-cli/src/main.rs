@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use tutti_config::load_from_path;
-use tutti_daemon::DaemonRunner;
+use tutti_daemon::{DaemonRunner, DEFAULT_SYSTEM_DIR, SOCKET_FILE};
 use tutti_transport::client::ipc_client::IpcClient;
 
 mod config;
@@ -34,6 +34,8 @@ const DEFAULT_FILENAMES: [&str; 3] = ["tutti.toml", "tutti.config.toml", "Tutti.
 async fn main() -> Result<()> {
     let cli = config::Cli::parse();
 
+    tracing_subscriber::fmt::init();
+
     match cli.command {
         config::Commands::Run {
             file,
@@ -50,22 +52,29 @@ async fn main() -> Result<()> {
                 "tutti.toml".to_string()
             });
 
-            let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
-            if daemon_runner.prepare().is_err() {
-                println!("Failed to prepare daemon");
-                return Ok(());
-            }
+            let system_directory =
+                system_directory.map_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR), PathBuf::from);
+            let socket_file = system_directory.join(SOCKET_FILE);
+
+            // let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
+            // if daemon_runner.prepare().is_err() {
+            //     println!("Failed to prepare daemon");
+            //     return Ok(());
+            // }
 
             let path = PathBuf::from(file);
-            if !IpcClient::check_socket(&path).await && daemon_runner.spawn().is_err() {
-                println!("Failed to spawn daemon");
-            }
+            // if !IpcClient::check_socket(&path).await && daemon_runner.spawn().is_err() {
+            //     println!("Failed to spawn daemon");
+            // }
 
             let project = load_from_path(&path)?;
 
-            let Ok(mut client) = IpcClient::new(path).await else {
-                println!("Failed to connect to the daemon");
-                return Ok(());
+            let mut client = match IpcClient::new(socket_file).await {
+                Ok(client) => client,
+                Err(err) => {
+                    println!("Failed to connect to the daemon: {err:?}");
+                    return Ok(());
+                }
             };
 
             if client.up(project, services).await.is_err() {

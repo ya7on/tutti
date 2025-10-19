@@ -14,6 +14,8 @@ clap = { workspace = true }
 colored = { workspace = true }
 futures = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 tutti-config = { version = "0.1.2", path = "../tutti-config", features = ["toml"] }
 tutti-daemon = { version = "0.1.2", path = "../tutti-daemon" }

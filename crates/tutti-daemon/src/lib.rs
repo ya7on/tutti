@@ -9,9 +9,9 @@ use tutti_transport::{
     server::ipc_server::IpcServer,
 };
 
-const SOCKET_FILE: &str = "tutti.sock";
+pub const SOCKET_FILE: &str = "tutti.sock";
 
-const DEFAULT_SYSTEM_DIR: &str = "~/.tutti/";
+pub const DEFAULT_SYSTEM_DIR: &str = "~/.tutti/";
 
 #[derive(Debug, Clone)]
 struct Context {
@@ -35,23 +35,29 @@ async fn unary_handler(message: TuttiApi, context: Context) -> TransportResult<T
     match message {
         TuttiApi::Ping => Ok(TuttiApi::Pong),
         TuttiApi::Up { project, services } => {
+            tracing::info!("Starting project {project:?} with services {services:?}");
+
             let mut guard = context.supervisor.lock().await;
             guard
                 .up(project, services)
                 .await
                 .map_err(|_| TransportError::UnknownMessage)?;
-            // Ok(TuttiApi::Up)
-            todo!()
+
+            Ok(TuttiApi::Pong)
         }
         _ => Err(TransportError::UnknownMessage),
     }
 }
 
 async fn stream_handler(context: Context) -> TransportResult<TuttiApi> {
+    tracing::info!("Starting stream handler");
+
     let mut guard = context.receiver.lock().await;
     let Some(event) = guard.recv().await else {
         return Err(TransportError::UnknownMessage);
     };
+
+    tracing::info!("Received event: {:?}", event);
 
     match event {
         SupervisorEvent::Log {
@@ -112,8 +118,11 @@ impl DaemonRunner {
     ///
     /// # Errors
     /// Returns an error if the daemon process cannot be started.
+    #[tracing::instrument(skip_all)]
     pub async fn start(&self) -> Result<(), String> {
+        tracing::info!("Starting daemon process...");
         let (supervisor, receiver) = Supervisor::new(UnixProcessManager::new());
+        tracing::debug!("Supervisor created");
 
         let unary_handler =
             Arc::new(|api: TuttiApi, context: Context| unary_handler(api, context).boxed());

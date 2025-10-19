@@ -40,10 +40,12 @@ impl IpcClient {
     ///
     /// # Panics
     /// If the socket connection fails.
+    #[tracing::instrument]
     pub async fn new(path: PathBuf) -> TransportResult<Self> {
-        let socket = UnixStream::connect(path)
-            .await
-            .map_err(TransportError::SocketError)?;
+        let socket = UnixStream::connect(path).await.map_err(|err| {
+            tracing::error!("Failed to connect to IPC socket: {}", err);
+            TransportError::SocketError(err)
+        })?;
 
         let (tx, rx) = mpsc::channel::<(TuttiMessage, mpsc::Sender<TuttiMessage>)>(BUFFER_SIZE);
 

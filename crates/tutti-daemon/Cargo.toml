@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink"] }
 
 tutti-core = { version = "0.1.2", path = "../tutti-core" }
