@@ -67,7 +67,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
     async fn handle_commands(&mut self, command: SupervisorCommand) -> Result<()> {
         match command {
             SupervisorCommand::UpdateConfig { project_id, config } => {
-                self.update_config(project_id, config)?;
+                self.update_config(project_id, config);
                 Ok(())
             }
             SupervisorCommand::Up {
@@ -85,7 +85,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 project_id,
                 service,
             } => {
-                self.end_of_logs(project_id, service).await?;
+                self.end_of_logs(project_id, service)?;
                 Ok(())
             }
             SupervisorCommand::HealthCheckSuccess {
@@ -98,12 +98,10 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         }
     }
 
-    fn update_config(&mut self, project_id: ProjectId, new_config: Project) -> Result<()> {
+    fn update_config(&mut self, project_id: ProjectId, new_config: Project) {
         tracing::info!("Updating config for project {project_id:?}");
 
         self.config.insert(project_id, new_config);
-
-        Ok(())
     }
 
     async fn up(&mut self, project_id: ProjectId, services: Vec<String>) -> Result<()> {
@@ -166,7 +164,9 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         let services = self.storage.remove(&project_id).unwrap_or_default();
         for service in services {
             if service.status == Status::Running {
-                self.process_manager.kill(service.pid.unwrap()).await?;
+                if let Some(pid) = service.pid {
+                    self.process_manager.kill(pid).await?;
+                }
             }
         }
         Ok(())
@@ -201,22 +201,26 @@ impl<P: ProcessManager> SupervisorBackground<P> {
             tokio::spawn(async move {
                 while let Some(command) = stdout.next().await {
                     let log = String::from_utf8_lossy(&command);
-                    output_tx
+                    if let Err(err) = output_tx
                         .send(SupervisorEvent::Log {
                             project_id: project_id_clone.clone(),
                             service: service_name_clone.clone(),
                             message: log.to_string(),
                         })
                         .await
-                        .unwrap(); // TODO: Handle error properly
+                    {
+                        tracing::error!("Failed to send log event: {}", err);
+                    }
                 }
-                commands_tx
+                if let Err(err) = commands_tx
                     .send(SupervisorCommand::EndOfLogs {
                         project_id: project_id_clone.clone(),
                         service: service_name_clone.clone(),
                     })
                     .await
-                    .unwrap(); // TODO: Handle error properly
+                {
+                    tracing::error!("Failed to send end of logs command: {}", err);
+                }
             });
         }
 
@@ -229,22 +233,26 @@ impl<P: ProcessManager> SupervisorBackground<P> {
             tokio::spawn(async move {
                 while let Some(command) = stderr.next().await {
                     let log = String::from_utf8_lossy(&command);
-                    output_tx
+                    if let Err(err) = output_tx
                         .send(SupervisorEvent::Log {
                             project_id: project_id_clone.clone(),
                             service: service_name_clone.clone(),
                             message: log.to_string(),
                         })
                         .await
-                        .unwrap(); // TODO: Handle error properly
+                    {
+                        tracing::error!("Failed to send log event: {}", err);
+                    }
                 }
-                commands_tx
+                if let Err(err) = commands_tx
                     .send(SupervisorCommand::EndOfLogs {
                         project_id: project_id_clone.clone(),
                         service: service_name_clone.clone(),
                     })
                     .await
-                    .unwrap(); // TODO: Handle error properly
+                {
+                    tracing::error!("Failed to send end of logs command: {}", err);
+                }
             });
         }
 
@@ -255,13 +263,12 @@ impl<P: ProcessManager> SupervisorBackground<P> {
             let service_name_clone = service_name.clone();
             tokio::spawn(async move {
                 if healthcheck.is_none() {
-                    commands_tx
+                    let _ = commands_tx
                         .send(SupervisorCommand::HealthCheckSuccess {
                             project_id: project_id_clone.clone(),
                             service: service_name_clone.clone(),
                         })
-                        .await
-                        .unwrap(); // TODO: Handle error properly
+                        .await;
                 }
             });
         }
@@ -269,7 +276,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         Ok(process.id)
     }
 
-    async fn end_of_logs(&mut self, project_id: ProjectId, service: String) -> Result<()> {
+    fn end_of_logs(&mut self, project_id: ProjectId, service: String) -> Result<()> {
         let Some(running_services) = self.storage.get_mut(&project_id) else {
             return Err(Error::ProjectNotFound(project_id));
         };

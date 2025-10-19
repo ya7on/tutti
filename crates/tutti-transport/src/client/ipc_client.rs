@@ -12,6 +12,7 @@ use tutti_types::Project;
 use crate::{
     api::{MessageType, TuttiApi, TuttiMessage},
     client::worker::IpcClientWorker,
+    error::{TransportError, TransportResult},
 };
 
 const BUFFER_SIZE: usize = 100;
@@ -32,25 +33,40 @@ impl IpcClient {
         true
     }
 
-    pub async fn new(path: PathBuf) -> Self {
-        let socket = UnixStream::connect(path).await.unwrap();
+    /// Create a new IPC client.
+    ///
+    /// # Errors
+    /// If the socket connection fails.
+    ///
+    /// # Panics
+    /// If the socket connection fails.
+    pub async fn new(path: PathBuf) -> TransportResult<Self> {
+        let socket = UnixStream::connect(path)
+            .await
+            .map_err(TransportError::SocketError)?;
 
         let (tx, rx) = mpsc::channel::<(TuttiMessage, mpsc::Sender<TuttiMessage>)>(BUFFER_SIZE);
 
         let task = tokio::spawn(async move {
             let framed = Framed::new(socket, LengthDelimitedCodec::new());
             let (sink, stream) = framed.split();
-            IpcClientWorker::new(sink, stream, rx).run().await.unwrap();
+            if IpcClientWorker::new(sink, stream, rx).run().await.is_err() {
+                todo!()
+            }
         });
 
-        Self {
+        Ok(Self {
             _task: task,
             in_socket: tx,
             message_counter: 0,
-        }
+        })
     }
 
-    pub async fn send(&mut self, message: TuttiApi) -> Result<TuttiApi, ()> {
+    /// Send a message to the server.
+    ///
+    /// # Errors
+    /// If the message could not be sent.
+    pub async fn send(&mut self, message: TuttiApi) -> TransportResult<TuttiApi> {
         self.message_counter += 1;
         let message_id = self.message_counter;
 
@@ -66,7 +82,7 @@ impl IpcClient {
                 response_tx,
             ))
             .await
-            .unwrap();
+            .map_err(|err| TransportError::SendError(err.to_string()))?;
 
         while let Some(response) = response_rx.recv().await {
             if let TuttiMessage {
@@ -82,20 +98,29 @@ impl IpcClient {
                 return Ok(body);
             }
         }
-        Err(())
+
+        Err(TransportError::SendError("No response".to_string()))
     }
 
     pub async fn ping(&mut self) -> bool {
         self.send(TuttiApi::Ping).await.is_ok()
     }
 
-    pub async fn up(&mut self, project: Project, services: Vec<String>) -> Result<(), ()> {
-        self.send(TuttiApi::Up { project, services }).await.unwrap();
+    /// Start a project with the given services.
+    ///
+    /// # Errors
+    /// Returns an error if the project cannot be started.
+    pub async fn up(&mut self, project: Project, services: Vec<String>) -> TransportResult<()> {
+        self.send(TuttiApi::Up { project, services }).await?;
 
         Ok(())
     }
 
-    pub async fn subscribe(&mut self) -> Result<Receiver<TuttiMessage>, ()> {
+    /// Subscribe to Tutti events.
+    ///
+    /// # Errors
+    /// Returns an error if the subscription cannot be established.
+    pub async fn subscribe(&mut self) -> TransportResult<Receiver<TuttiMessage>> {
         let (response_tx, stream) = mpsc::channel::<TuttiMessage>(BUFFER_SIZE);
 
         self.in_socket
@@ -108,7 +133,7 @@ impl IpcClient {
                 response_tx,
             ))
             .await
-            .unwrap();
+            .map_err(|err| TransportError::SendError(err.to_string()))?;
 
         Ok(stream)
     }

@@ -17,7 +17,7 @@ pub struct Supervisor {
 }
 
 impl Supervisor {
-    pub async fn new<P: ProcessManager + Send + Sync + 'static>(
+    pub fn new<P: ProcessManager + Send + Sync + 'static>(
         process_manager: P,
     ) -> (Self, mpsc::Receiver<SupervisorEvent>) {
         let (commands_tx, commands_rx) = mpsc::channel::<SupervisorCommand>(100);
@@ -37,17 +37,25 @@ impl Supervisor {
         )
     }
 
+    /// Shutdown the supervisor.
+    ///
+    /// # Errors
+    /// Returns an error if the supervisor fails to shutdown.
     pub async fn down(&mut self, project: Project) -> Result<()> {
         self.commands_tx
             .send(SupervisorCommand::Down {
                 project_id: project.id,
             })
             .await
-            .map_err(|err| Error::InternalTransportError(err.to_string()))?;
+            .map_err(|err| Error::Internal(err.to_string()))?;
 
         Ok(())
     }
 
+    /// Start the supervisor.
+    ///
+    /// # Errors
+    /// Returns an error if the supervisor fails to start.
     pub async fn up(&mut self, project: Project, services: Vec<String>) -> Result<()> {
         tracing::trace!(
             "Received up command for project {project:?} to start services {services:?}"
@@ -61,14 +69,14 @@ impl Supervisor {
                 config: project,
             })
             .await
-            .map_err(|err| Error::InternalTransportError(err.to_string()))?;
+            .map_err(|err| Error::Internal(err.to_string()))?;
         self.commands_tx
             .send(SupervisorCommand::Up {
                 project_id: project_id.clone(),
                 services,
             })
             .await
-            .map_err(|err| Error::InternalTransportError(err.to_string()))?;
+            .map_err(|err| Error::Internal(err.to_string()))?;
 
         Ok(())
     }

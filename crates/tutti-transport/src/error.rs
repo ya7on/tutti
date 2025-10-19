@@ -4,4 +4,6 @@ pub type TransportResult<T, E = TransportError> = Result<T, E>;
 pub enum TransportError {
     SerdeError(serde_json::Error),
     UnknownMessage,
+    SocketError(std::io::Error),
+    SendError(String),
 }

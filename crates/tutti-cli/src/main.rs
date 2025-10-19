@@ -1,11 +1,7 @@
-use std::{
-    hash::{DefaultHasher, Hash, Hasher},
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use colored::Color;
 use tutti_config::load_from_path;
 use tutti_daemon::DaemonRunner;
 use tutti_transport::client::ipc_client::IpcClient;
@@ -14,25 +10,25 @@ mod config;
 
 const DEFAULT_FILENAMES: [&str; 3] = ["tutti.toml", "tutti.config.toml", "Tutti.toml"];
 
-fn string_to_color(s: &str) -> Color {
-    let colors = [
-        Color::Green,
-        Color::Blue,
-        Color::Magenta,
-        Color::Cyan,
-        Color::BrightGreen,
-        Color::BrightBlue,
-        Color::BrightMagenta,
-        Color::BrightCyan,
-    ];
+// fn string_to_color(s: &str) -> Color {
+//     let colors = [
+//         Color::Green,
+//         Color::Blue,
+//         Color::Magenta,
+//         Color::Cyan,
+//         Color::BrightGreen,
+//         Color::BrightBlue,
+//         Color::BrightMagenta,
+//         Color::BrightCyan,
+//     ];
 
-    let mut hasher = DefaultHasher::new();
-    s.hash(&mut hasher);
-    let hash = hasher.finish();
+//     let mut hasher = DefaultHasher::new();
+//     s.hash(&mut hasher);
+//     let hash = hasher.finish();
 
-    let idx = usize::try_from(hash).unwrap_or_default() % colors.len();
-    colors[idx]
-}
+//     let idx = usize::try_from(hash).unwrap_or_default() % colors.len();
+//     colors[idx]
+// }
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -55,30 +51,49 @@ async fn main() -> Result<()> {
             });
 
             let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
-            daemon_runner.prepare().unwrap();
+            if daemon_runner.prepare().is_err() {
+                println!("Failed to prepare daemon");
+                return Ok(());
+            }
 
             let path = PathBuf::from(file);
-            if !IpcClient::check_socket(&path).await {
-                daemon_runner.spawn().unwrap();
+            if !IpcClient::check_socket(&path).await && daemon_runner.spawn().is_err() {
+                println!("Failed to spawn daemon");
             }
 
             let project = load_from_path(&path)?;
 
-            let mut client = IpcClient::new(path).await;
+            let Ok(mut client) = IpcClient::new(path).await else {
+                println!("Failed to connect to the daemon");
+                return Ok(());
+            };
 
-            client.up(project, services).await.unwrap();
+            if client.up(project, services).await.is_err() {
+                println!("Failed to start project");
+            }
 
-            let mut logs = client.subscribe().await.expect("AAA");
+            let Ok(mut logs) = client.subscribe().await else {
+                println!("Failed to subscribe to logs");
+                return Ok(());
+            };
+
             while let Some(log) = logs.recv().await {
-                println!("{:?}", log);
+                println!("{log:?}");
             }
 
             println!("{:?}", 2);
         }
         config::Commands::Daemon { system_directory } => {
             let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
-            daemon_runner.prepare().unwrap();
-            daemon_runner.start().await.unwrap();
+            if daemon_runner.prepare().is_err() {
+                println!("Failed to prepare daemon");
+                return Ok(());
+            }
+
+            if daemon_runner.start().await.is_err() {
+                println!("Failed to start daemon");
+                return Ok(());
+            }
         }
     }
 

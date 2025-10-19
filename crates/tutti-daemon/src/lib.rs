@@ -13,6 +13,59 @@ const SOCKET_FILE: &str = "tutti.sock";
 
 const DEFAULT_SYSTEM_DIR: &str = "~/.tutti/";
 
+#[derive(Debug, Clone)]
+struct Context {
+    supervisor: Arc<Mutex<Supervisor>>,
+    receiver: Arc<Mutex<Receiver<SupervisorEvent>>>,
+}
+
+impl Context {
+    pub fn new(
+        supervisor: Arc<Mutex<Supervisor>>,
+        receiver: Arc<Mutex<Receiver<SupervisorEvent>>>,
+    ) -> Self {
+        Context {
+            supervisor,
+            receiver,
+        }
+    }
+}
+
+async fn unary_handler(message: TuttiApi, context: Context) -> TransportResult<TuttiApi> {
+    match message {
+        TuttiApi::Ping => Ok(TuttiApi::Pong),
+        TuttiApi::Up { project, services } => {
+            let mut guard = context.supervisor.lock().await;
+            guard
+                .up(project, services)
+                .await
+                .map_err(|_| TransportError::UnknownMessage)?;
+            // Ok(TuttiApi::Up)
+            todo!()
+        }
+        _ => Err(TransportError::UnknownMessage),
+    }
+}
+
+async fn stream_handler(context: Context) -> TransportResult<TuttiApi> {
+    let mut guard = context.receiver.lock().await;
+    let Some(event) = guard.recv().await else {
+        return Err(TransportError::UnknownMessage);
+    };
+
+    match event {
+        SupervisorEvent::Log {
+            project_id,
+            service,
+            message,
+        } => Ok(TuttiApi::Log {
+            project_id,
+            service,
+            message,
+        }),
+    }
+}
+
 #[derive(Debug)]
 pub struct DaemonRunner {
     system: PathBuf,
@@ -26,77 +79,41 @@ impl DaemonRunner {
         }
     }
 
+    /// Prepare the system directory.
+    ///
+    /// # Errors
+    /// Returns an error if the system directory cannot be prepared.
     pub fn prepare(&self) -> Result<(), String> {
-        if !std::fs::exists(&self.system).unwrap() {
-            std::fs::create_dir_all(&self.system).unwrap();
+        if !std::fs::exists(&self.system)
+            .map_err(|err| format!("Cannot prepare system directory: {err:?}"))?
+        {
+            std::fs::create_dir_all(&self.system)
+                .map_err(|err| format!("Cannot create system directory: {err:?}"))?;
         }
 
         Ok(())
     }
 
+    /// Spawn the daemon process.
+    ///
+    /// # Errors
+    /// Returns an error if the daemon process cannot be spawned.
     pub fn spawn(&self) -> Result<(), String> {
         std::process::Command::new("tutti-cli")
             .arg("daemon")
             .arg("--run")
             .spawn()
-            .unwrap();
+            .map_err(|err| format!("Cannot spawn daemon process: {err:?}"))?;
 
         Ok(())
     }
 
+    /// Start the daemon process.
+    ///
+    /// # Errors
+    /// Returns an error if the daemon process cannot be started.
     pub async fn start(&self) -> Result<(), String> {
-        let (supervisor, receiver) = Supervisor::new(UnixProcessManager::new()).await;
-
-        #[derive(Debug, Clone)]
-        struct Context {
-            supervisor: Arc<Mutex<Supervisor>>,
-            receiver: Arc<Mutex<Receiver<SupervisorEvent>>>,
-        }
-
-        impl Context {
-            pub fn new(
-                supervisor: Arc<Mutex<Supervisor>>,
-                receiver: Arc<Mutex<Receiver<SupervisorEvent>>>,
-            ) -> Self {
-                Context {
-                    supervisor,
-                    receiver,
-                }
-            }
-        }
-
-        async fn unary_handler(message: TuttiApi, context: Context) -> TransportResult<TuttiApi> {
-            match message {
-                TuttiApi::Ping => Ok(TuttiApi::Pong),
-                TuttiApi::Up { project, services } => {
-                    let mut guard = context.supervisor.lock().await;
-                    guard.up(project, services).await.unwrap();
-                    // Ok(TuttiApi::Up)
-                    todo!()
-                }
-                _ => Err(TransportError::UnknownMessage),
-            }
-        }
-
-        async fn stream_handler(context: Context) -> TransportResult<TuttiApi> {
-            while let Some(event) = context.receiver.lock().await.recv().await {
-                match event {
-                    SupervisorEvent::Log {
-                        project_id,
-                        service,
-                        message,
-                    } => {
-                        return Ok(TuttiApi::Log {
-                            project_id,
-                            service,
-                            message,
-                        });
-                    }
-                }
-            }
-
-            Err(TransportError::UnknownMessage)
-        }
+        let (supervisor, receiver) = Supervisor::new(UnixProcessManager::new());
 
         let unary_handler =
             Arc::new(|api: TuttiApi, context: Context| unary_handler(api, context).boxed());
@@ -109,6 +126,7 @@ impl DaemonRunner {
                 Arc::new(Mutex::new(receiver)),
             ),
         )
+        .map_err(|err| format!("Cannot start IPC Server: {err:?}"))?
         .add_unary_handler(unary_handler)
         .add_stream_handler(stream_handler)
         .start()

@@ -23,13 +23,13 @@ impl ProcessManager for MockProcessManager {
             pid: None,
         })
     }
-    async fn shutdown(&mut self, id: ProcId) -> Result<()> {
+    async fn shutdown(&mut self, _id: ProcId) -> Result<()> {
         todo!()
     }
-    async fn wait(&mut self, id: ProcId, d: Duration) -> Result<Option<i32>> {
+    async fn wait(&mut self, _id: ProcId, _d: Duration) -> Result<Option<i32>> {
         todo!()
     }
-    async fn kill(&mut self, id: ProcId) -> Result<()> {
+    async fn kill(&mut self, _id: ProcId) -> Result<()> {
         todo!()
     }
 }

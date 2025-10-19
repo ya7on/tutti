@@ -15,7 +15,7 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
 use crate::{
     api::{TuttiApi, TuttiMessage},
-    error::TransportResult,
+    error::{TransportError, TransportResult},
 };
 
 pub type IpcWorkerSink<IO = UnixStream> = SplitSink<Framed<IO, LengthDelimitedCodec>, Bytes>;
@@ -50,18 +50,29 @@ where
         }
     }
 
+    /// Handle incoming socket messages.
+    ///
+    /// # Errors
+    /// This function returns an error if the message cannot be deserialized or if the message ID is not recognized.
     async fn handle_socket_message(&mut self, message: BytesMut) -> TransportResult<()> {
-        let message = serde_json::from_slice::<TuttiMessage>(&message).unwrap();
+        let message =
+            serde_json::from_slice::<TuttiMessage>(&message).map_err(TransportError::SerdeError)?;
 
         if message.id == 0 {
             for stream in &mut self.streams {
-                stream.send(message.clone()).await.unwrap();
+                stream
+                    .send(message.clone())
+                    .await
+                    .map_err(|err| TransportError::SendError(err.to_string()))?;
             }
             return Ok(());
         }
 
         if let Some(response) = self.response.remove(&message.id) {
-            response.send(message).await.unwrap();
+            response
+                .send(message)
+                .await
+                .map_err(|err| TransportError::SendError(err.to_string()))?;
         }
 
         Ok(())
@@ -79,14 +90,21 @@ where
             return Ok(());
         }
 
-        let b = serde_json::to_vec(&message).unwrap();
-        self.sink.send(Bytes::from(b)).await.unwrap();
+        let b = serde_json::to_vec(&message).map_err(TransportError::SerdeError)?;
+        self.sink
+            .send(Bytes::from(b))
+            .await
+            .map_err(|err| TransportError::SendError(err.to_string()))?;
 
         self.response.insert(message_id, sender);
 
         Ok(())
     }
 
+    /// Run the worker.
+    ///
+    /// # Errors
+    /// This function runs the worker in an infinite loop, handling incoming messages from the socket and the message channel.
     pub async fn run(&mut self) -> TransportResult<()> {
         loop {
             select! {

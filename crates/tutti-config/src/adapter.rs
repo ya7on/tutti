@@ -5,10 +5,10 @@ use tutti_types::{Project, ProjectId, Service};
 use crate::{raw::RawProject, ConfigError};
 
 impl RawProject {
-    pub fn to_project(self, path: &Path) -> Result<Project, ConfigError> {
+    pub fn to_project(&self, path: &Path) -> Result<Project, ConfigError> {
         let services = self
             .services
-            .into_iter()
+            .iter()
             .map(|(name, raw_service)| {
                 if raw_service.cmd.is_empty() {
                     return Err(ConfigError::Validation(format!(
@@ -25,10 +25,10 @@ impl RawProject {
                 Ok((
                     name.clone(),
                     Service {
-                        cmd: raw_service.cmd,
-                        cwd: raw_service.cwd.and_then(|cwd| cwd.parse().ok()),
-                        env: raw_service.env,
-                        deps: raw_service.deps.unwrap_or_default(),
+                        cmd: raw_service.cmd.clone(),
+                        cwd: raw_service.cwd.clone().and_then(|cwd| cwd.parse().ok()),
+                        env: raw_service.env.clone(),
+                        deps: raw_service.deps.clone().unwrap_or_default(),
                         healthcheck: raw_service.healthcheck,
                     },
                 ))
