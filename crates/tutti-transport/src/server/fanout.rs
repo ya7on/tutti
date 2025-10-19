@@ -1,5 +1,6 @@
 use tokio::sync::mpsc::Sender;
 
+#[derive(Debug)]
 pub struct Fanout<T: Clone> {
     subscribers: Vec<Sender<T>>,
 }
@@ -22,10 +23,11 @@ impl<T: Clone> Fanout<T> {
         self.subscribers.push(sender);
     }
 
-    pub async fn send(&mut self, message: T) {
+    pub async fn send(&self, message: T) {
         for i in 0..self.subscribers.len() {
             if let Err(_) = self.subscribers[i].try_send(message.clone()) {
-                self.subscribers.swap_remove(i);
+                // self.subscribers.swap_remove(i);
+                // todo!()
             }
         }
     }

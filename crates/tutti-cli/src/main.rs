@@ -6,6 +6,7 @@ use std::{
 use anyhow::Result;
 use clap::Parser;
 use colored::Color;
+use tutti_config::load_from_path;
 use tutti_daemon::DaemonRunner;
 use tutti_transport::client::ipc_client::IpcClient;
 
@@ -40,7 +41,7 @@ async fn main() -> Result<()> {
     match cli.command {
         config::Commands::Run {
             file,
-            services: _,
+            services,
             system_directory,
             kill_timeout: _,
         } => {
@@ -59,6 +60,17 @@ async fn main() -> Result<()> {
             let path = PathBuf::from(file);
             if !IpcClient::check_socket(&path).await {
                 daemon_runner.spawn().unwrap();
+            }
+
+            let project = load_from_path(&path)?;
+
+            let mut client = IpcClient::new(path).await;
+
+            client.up(project, services).await.unwrap();
+
+            let mut logs = client.subscribe().await.expect("AAA");
+            while let Some(log) = logs.recv().await {
+                println!("{:?}", log);
             }
 
             println!("{:?}", 2);

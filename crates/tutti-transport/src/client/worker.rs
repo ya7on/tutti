@@ -13,7 +13,10 @@ use tokio::{
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-use crate::{api::TuttiMessage, error::TransportResult};
+use crate::{
+    api::{TuttiApi, TuttiMessage},
+    error::TransportResult,
+};
 
 pub type IpcWorkerSink<IO = UnixStream> = SplitSink<Framed<IO, LengthDelimitedCodec>, Bytes>;
 pub type IpcWorkerStream<IO = UnixStream> = SplitStream<Framed<IO, LengthDelimitedCodec>>;
@@ -24,6 +27,7 @@ pub struct IpcClientWorker<IO = UnixStream> {
     stream: IpcWorkerStream<IO>,
 
     receiver: mpsc::Receiver<(TuttiMessage, mpsc::Sender<TuttiMessage>)>,
+    streams: Vec<mpsc::Sender<TuttiMessage>>,
 
     response: HashMap<u32, mpsc::Sender<TuttiMessage>>,
 }
@@ -41,12 +45,20 @@ where
             sink,
             stream,
             receiver,
+            streams: Vec::new(),
             response: HashMap::new(),
         }
     }
 
     async fn handle_socket_message(&mut self, message: BytesMut) -> TransportResult<()> {
         let message = serde_json::from_slice::<TuttiMessage>(&message).unwrap();
+
+        if message.id == 0 {
+            for stream in &mut self.streams {
+                stream.send(message.clone()).await.unwrap();
+            }
+            return Ok(());
+        }
 
         if let Some(response) = self.response.remove(&message.id) {
             response.send(message).await.unwrap();
@@ -61,6 +73,11 @@ where
         sender: mpsc::Sender<TuttiMessage>,
     ) -> TransportResult<()> {
         let message_id = message.id;
+
+        if message_id == 0 && message.body == TuttiApi::Subscribe {
+            self.streams.push(sender);
+            return Ok(());
+        }
 
         let b = serde_json::to_vec(&message).unwrap();
         self.sink.send(Bytes::from(b)).await.unwrap();

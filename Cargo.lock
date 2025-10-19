@@ -783,6 +783,9 @@ dependencies = [
 [[package]]
 name = "tutti-types"
 version = "0.1.2"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "unicode-ident"

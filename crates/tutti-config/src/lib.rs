@@ -66,7 +66,7 @@ mod tests {
             [services.db]
             cmd = ["postgres","-D",".pg"]
         "#;
-        let p = parse_toml(txt).unwrap();
+        let p = parse_toml(txt, std::path::Path::new("")).unwrap();
         assert!(p.services.contains_key("api"));
         assert_eq!(p.services["api"].cmd, vec!["cargo", "run", "--bin", "api"]);
         assert_eq!(p.version, 1);

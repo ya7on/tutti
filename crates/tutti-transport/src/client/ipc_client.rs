@@ -1,8 +1,13 @@
 use std::path::PathBuf;
 
 use futures_util::StreamExt;
-use tokio::{net::UnixStream, sync::mpsc, task::JoinHandle};
+use tokio::{
+    net::UnixStream,
+    sync::mpsc::{self, Receiver},
+    task::JoinHandle,
+};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
+use tutti_types::Project;
 
 use crate::{
     api::{MessageType, TuttiApi, TuttiMessage},
@@ -20,7 +25,7 @@ pub struct IpcClient {
 
 impl IpcClient {
     pub async fn check_socket(path: &PathBuf) -> bool {
-        let Ok(socket) = UnixStream::connect(path).await else {
+        let Ok(_socket) = UnixStream::connect(path).await else {
             return false;
         };
 
@@ -82,5 +87,29 @@ impl IpcClient {
 
     pub async fn ping(&mut self) -> bool {
         self.send(TuttiApi::Ping).await.is_ok()
+    }
+
+    pub async fn up(&mut self, project: Project, services: Vec<String>) -> Result<(), ()> {
+        self.send(TuttiApi::Up { project, services }).await.unwrap();
+
+        Ok(())
+    }
+
+    pub async fn subscribe(&mut self) -> Result<Receiver<TuttiMessage>, ()> {
+        let (response_tx, stream) = mpsc::channel::<TuttiMessage>(BUFFER_SIZE);
+
+        self.in_socket
+            .send((
+                TuttiMessage {
+                    id: 0,
+                    req_type: MessageType::Request,
+                    body: TuttiApi::Subscribe,
+                },
+                response_tx,
+            ))
+            .await
+            .unwrap();
+
+        Ok(stream)
     }
 }
