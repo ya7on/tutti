@@ -131,9 +131,8 @@ impl ProcessManager for UnixProcessManager {
     }
 
     async fn wait(&mut self, id: ProcId, d: Duration) -> Result<Option<i32>> {
-        let index = usize::try_from(id.0).map_err(|_| {
-            Error::IO(std::io::Error::other("Cannot convert process id to usize"))
-        })?;
+        let index = usize::try_from(id.0)
+            .map_err(|_| Error::IO(std::io::Error::other("Cannot convert process id to usize")))?;
         let proc = self
             .processes
             .get_mut(index)
