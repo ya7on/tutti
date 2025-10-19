@@ -14,9 +14,8 @@ use crate::{
 type UnaryHandler<C: Clone + Send + Sync + 'static> =
     Arc<dyn Fn(TuttiApi, C) -> BoxFuture<'static, TransportResult<TuttiApi>> + Send + Sync>;
 
-type StreamHandler<C: Clone + Send + Sync + 'static> = Arc<
-    dyn Fn(Fanout<TuttiApi>, C) -> BoxFuture<'static, TransportResult<TuttiApi>> + Send + Sync,
->;
+type StreamHandler<C: Clone + Send + Sync + 'static> =
+    Arc<dyn Fn(Fanout<TuttiApi>, C) -> BoxFuture<'static, TransportResult<TuttiApi>> + Send + Sync>;
 
 pub struct IpcServer<C: Clone + Send + Sync> {
     socket: UnixListener,

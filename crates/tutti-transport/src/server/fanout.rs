@@ -11,7 +11,7 @@ impl<T: Clone> Default for Fanout<T> {
 }
 
 impl<T: Clone> Fanout<T> {
-    #[must_use] 
+    #[must_use]
     pub fn new() -> Self {
         Self {
             subscribers: Vec::new(),

@@ -53,8 +53,7 @@ async fn main() -> Result<()> {
                 "tutti.toml".to_string()
             });
 
-            let daemon_runner =
-                DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
+            let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
             daemon_runner.prepare().unwrap();
 
             let path = PathBuf::from(file);
@@ -65,8 +64,7 @@ async fn main() -> Result<()> {
             println!("{:?}", 2);
         }
         config::Commands::Daemon { system_directory } => {
-            let daemon_runner =
-                DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
+            let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
             daemon_runner.prepare().unwrap();
             daemon_runner.start().await.unwrap();
         }
