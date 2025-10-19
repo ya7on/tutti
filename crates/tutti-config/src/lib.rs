@@ -1,7 +1,7 @@
-mod model;
-mod raw;
+use tutti_types::Project;
 
-pub use model::{Project, Service};
+mod adapter;
+mod raw;
 
 /// Error type for configuration parsing.
 #[derive(Debug, thiserror::Error)]
@@ -36,7 +36,7 @@ pub fn parse_auto(text: &str, path: &std::path::Path) -> Result<Project, ConfigE
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
     match ext {
         #[cfg(feature = "toml")]
-        "toml" => parse_toml(text),
+        "toml" => parse_toml(text, path),
         _ => Err(ConfigError::Validation("unknown config extension".into())),
     }
 }
@@ -47,9 +47,9 @@ pub fn parse_auto(text: &str, path: &std::path::Path) -> Result<Project, ConfigE
 ///
 /// Returns a `ConfigError` if the configuration string cannot be parsed.
 #[cfg(feature = "toml")]
-pub fn parse_toml(config: &str) -> Result<Project, ConfigError> {
+pub fn parse_toml(config: &str, path: &std::path::Path) -> Result<Project, ConfigError> {
     let raw_project = toml::from_str::<raw::RawProject>(config)?;
-    raw_project.try_into()
+    raw_project.to_project(path)
 }
 
 #[cfg(test)]
@@ -66,7 +66,7 @@ mod tests {
             [services.db]
             cmd = ["postgres","-D",".pg"]
         "#;
-        let p = parse_toml(txt).unwrap();
+        let p = parse_toml(txt, std::path::Path::new("")).unwrap();
         assert!(p.services.contains_key("api"));
         assert_eq!(p.services["api"].cmd, vec!["cargo", "run", "--bin", "api"]);
         assert_eq!(p.version, 1);

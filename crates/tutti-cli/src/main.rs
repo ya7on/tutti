@@ -1,45 +1,47 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use colored::{Color, Colorize};
-use tokio::sync::mpsc;
 use tutti_config::load_from_path;
-use tutti_core::{LogEvent, Runner, RunnerConfig, UnixProcessManager};
+use tutti_daemon::{DaemonRunner, DEFAULT_SYSTEM_DIR, SOCKET_FILE};
+use tutti_transport::client::ipc_client::IpcClient;
 
 mod config;
 
 const DEFAULT_FILENAMES: [&str; 3] = ["tutti.toml", "tutti.config.toml", "Tutti.toml"];
 
-fn string_to_color(s: &str) -> Color {
-    let colors = [
-        Color::Green,
-        Color::Blue,
-        Color::Magenta,
-        Color::Cyan,
-        Color::BrightGreen,
-        Color::BrightBlue,
-        Color::BrightMagenta,
-        Color::BrightCyan,
-    ];
+// fn string_to_color(s: &str) -> Color {
+//     let colors = [
+//         Color::Green,
+//         Color::Blue,
+//         Color::Magenta,
+//         Color::Cyan,
+//         Color::BrightGreen,
+//         Color::BrightBlue,
+//         Color::BrightMagenta,
+//         Color::BrightCyan,
+//     ];
 
-    let mut hasher = DefaultHasher::new();
-    s.hash(&mut hasher);
-    let hash = hasher.finish();
+//     let mut hasher = DefaultHasher::new();
+//     s.hash(&mut hasher);
+//     let hash = hasher.finish();
 
-    let idx = usize::try_from(hash).unwrap_or_default() % colors.len();
-    colors[idx]
-}
+//     let idx = usize::try_from(hash).unwrap_or_default() % colors.len();
+//     colors[idx]
+// }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = config::Cli::parse();
 
+    tracing_subscriber::fmt::init();
+
     match cli.command {
         config::Commands::Run {
             file,
             services,
-            kill_timeout,
+            system_directory,
+            kill_timeout: _,
         } => {
             let file = file.unwrap_or_else(|| {
                 for filename in DEFAULT_FILENAMES {
@@ -49,61 +51,57 @@ async fn main() -> Result<()> {
                 }
                 "tutti.toml".to_string()
             });
-            let path = std::path::Path::new(&file);
-            let project = load_from_path(path)?;
 
-            if !services.is_empty() {
-                for name in &services {
-                    if !project.services.contains_key(name) {
-                        return Err(anyhow::anyhow!("Service {name} not found"));
-                    }
+            let system_directory =
+                system_directory.map_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR), PathBuf::from);
+            let socket_file = system_directory.join(SOCKET_FILE);
+
+            // let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
+            // if daemon_runner.prepare().is_err() {
+            //     println!("Failed to prepare daemon");
+            //     return Ok(());
+            // }
+
+            let path = PathBuf::from(file);
+            // if !IpcClient::check_socket(&path).await && daemon_runner.spawn().is_err() {
+            //     println!("Failed to spawn daemon");
+            // }
+
+            let project = load_from_path(&path)?;
+
+            let mut client = match IpcClient::new(socket_file).await {
+                Ok(client) => client,
+                Err(err) => {
+                    println!("Failed to connect to the daemon: {err:?}");
+                    return Ok(());
                 }
+            };
+
+            if client.up(project, services).await.is_err() {
+                println!("Failed to start project");
             }
 
-            let process_manager = UnixProcessManager::new();
-            let mut runner = Runner::new(project, process_manager, RunnerConfig { kill_timeout });
+            let Ok(mut logs) = client.subscribe().await else {
+                println!("Failed to subscribe to logs");
+                return Ok(());
+            };
 
-            let mut logs = runner.up(services).await?;
+            while let Some(log) = logs.recv().await {
+                println!("{log:?}");
+            }
 
-            let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
+            println!("{:?}", 2);
+        }
+        config::Commands::Daemon { system_directory } => {
+            let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
+            if daemon_runner.prepare().is_err() {
+                println!("Failed to prepare daemon");
+                return Ok(());
+            }
 
-            tokio::spawn(async move {
-                if tokio::signal::ctrl_c().await.is_ok() {
-                    let line = "Received Ctrl+C, shutting down services...".yellow();
-                    println!("\n{line}");
-                    let _ = shutdown_tx.send(()).await;
-                }
-            });
-
-            tokio::spawn(async move {
-                while let Some(log) = logs.recv().await {
-                    match log {
-                        LogEvent::Log { service_name, line } => {
-                            let string = String::from_utf8_lossy(&line);
-                            for line in string.lines() {
-                                let prefix = format!("[{service_name}]")
-                                    .color(string_to_color(&service_name));
-                                println!("{prefix} {line}");
-                            }
-                        }
-                        LogEvent::Stop { service_name } => {
-                            let line = format!("{service_name} stopped")
-                                .color(string_to_color(&service_name));
-                            println!("{line}");
-                        }
-                    }
-                }
-            });
-
-            tokio::select! {
-                result = runner.wait() => {
-                    result?;
-                }
-                _ = shutdown_rx.recv() => {
-                    if let Err(err) = runner.down().await {
-                        eprintln!("Error during shutdown: {err}");
-                    }
-                }
+            if daemon_runner.start().await.is_err() {
+                println!("Failed to start daemon");
+                return Ok(());
             }
         }
     }

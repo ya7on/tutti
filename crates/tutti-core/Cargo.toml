@@ -7,16 +7,18 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
 async-trait = { workspace = true }
 colored = { workspace = true }
 futures = { workspace = true }
 futures-core = { workspace = true }
 libc = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
+tracing = { workspace = true }
 
 tutti-config = { version = "0.1.2", path = "../tutti-config", default-features = false }
+tutti-types = { version = "0.1.2", path = "../tutti-types", default-features = false }
 
 [lints]
 workspace = true
