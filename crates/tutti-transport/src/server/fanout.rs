@@ -25,9 +25,9 @@ impl<T: Clone> Fanout<T> {
 
     pub async fn send(&self, message: T) {
         for i in 0..self.subscribers.len() {
-            if self.subscribers[i].try_send(message.clone()).is_err() {
-                todo!()
-            }
+            // if self.subscribers[i].try_send(message.clone()).is_err() {
+            //     todo!()
+            // }
             let _ = self.subscribers[i].send(message.clone()).await;
         }
     }
