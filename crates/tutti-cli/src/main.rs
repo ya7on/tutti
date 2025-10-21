@@ -4,31 +4,12 @@ use anyhow::Result;
 use clap::Parser;
 use tutti_config::load_from_path;
 use tutti_daemon::{DaemonRunner, DEFAULT_SYSTEM_DIR, SOCKET_FILE};
-use tutti_transport::client::ipc_client::IpcClient;
+use tutti_transport::{api::TuttiApi, client::ipc_client::IpcClient};
 
 mod config;
+mod logger;
 
 const DEFAULT_FILENAMES: [&str; 3] = ["tutti.toml", "tutti.config.toml", "Tutti.toml"];
-
-// fn string_to_color(s: &str) -> Color {
-//     let colors = [
-//         Color::Green,
-//         Color::Blue,
-//         Color::Magenta,
-//         Color::Cyan,
-//         Color::BrightGreen,
-//         Color::BrightBlue,
-//         Color::BrightMagenta,
-//         Color::BrightCyan,
-//     ];
-
-//     let mut hasher = DefaultHasher::new();
-//     s.hash(&mut hasher);
-//     let hash = hasher.finish();
-
-//     let idx = usize::try_from(hash).unwrap_or_default() % colors.len();
-//     colors[idx]
-// }
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -86,11 +67,16 @@ async fn main() -> Result<()> {
                 return Ok(());
             };
 
-            while let Some(log) = logs.recv().await {
-                println!("{log:?}");
+            while let Some(message) = logs.recv().await {
+                if let TuttiApi::Log {
+                    project_id: _,
+                    service,
+                    message,
+                } = message.body
+                {
+                    logger::Logger::log(&service, &message);
+                }
             }
-
-            println!("{:?}", 2);
         }
         config::Commands::Daemon { system_directory } => {
             let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));

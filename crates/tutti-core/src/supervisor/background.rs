@@ -42,6 +42,8 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         commands_tx: tokio::sync::mpsc::Sender<SupervisorCommand>,
         commands_rx: tokio::sync::mpsc::Receiver<SupervisorCommand>,
     ) -> (Self, tokio::sync::mpsc::Receiver<SupervisorEvent>) {
+        tracing::info!("SupervisorBackground initialized");
+
         let (output_tx, output_rx) = tokio::sync::mpsc::channel(100);
         (
             Self {
@@ -57,7 +59,11 @@ impl<P: ProcessManager> SupervisorBackground<P> {
     }
 
     pub async fn run(&mut self) {
+        tracing::info!("SupervisorBackground started");
+
         while let Some(command) = self.commands_rx.recv().await {
+            tracing::debug!("Received command: {:?}", command);
+
             if let Err(err) = self.handle_commands(command).await {
                 tracing::error!("Error handling command: {err:?}");
             }
@@ -65,8 +71,12 @@ impl<P: ProcessManager> SupervisorBackground<P> {
     }
 
     async fn handle_commands(&mut self, command: SupervisorCommand) -> Result<()> {
+        tracing::debug!("Handling command: {:?}", command);
+
         match command {
             SupervisorCommand::UpdateConfig { project_id, config } => {
+                tracing::debug!("Updating config for project {project_id:?}");
+
                 self.update_config(project_id, config);
                 Ok(())
             }
@@ -74,10 +84,16 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 project_id,
                 services,
             } => {
+                tracing::debug!(
+                    "Starting services for project {project_id:?} with services: {services:?}",
+                );
+
                 self.up(project_id, services).await?;
                 Ok(())
             }
             SupervisorCommand::Down { project_id } => {
+                tracing::debug!("Stopping services for project {project_id:?}");
+
                 self.down(project_id).await?;
                 Ok(())
             }
@@ -85,6 +101,10 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 project_id,
                 service,
             } => {
+                tracing::debug!(
+                    "Getting end of logs for project {project_id:?} and service {service:?}"
+                );
+
                 self.end_of_logs(project_id, service)?;
                 Ok(())
             }
@@ -92,6 +112,10 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 project_id,
                 service,
             } => {
+                tracing::debug!(
+                    "Health check success for project {project_id:?} and service {service:?}"
+                );
+
                 self.health_check_success(project_id, service).await?;
                 Ok(())
             }
@@ -178,6 +202,8 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         service_name: String,
         project_id: ProjectId,
     ) -> Result<ProcId> {
+        tracing::debug!("Starting service {service_name:?} for project {project_id:?}");
+
         let process = self
             .process_manager
             .spawn(CommandSpec {
