@@ -1,6 +1,8 @@
 [package]
 name = "tutti-daemon"
-version = "0.1.2"
+description = "Daemon for Tutti"
+repository = "https://github.com/ya7on/tutti"
+version = "0.1.3"
 edition.workspace = true
 license.workspace = true
 
@@ -9,8 +11,8 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 futures-util = { workspace = true, features = ["std", "sink"] }
 
-tutti-core = { version = "0.1.2", path = "../tutti-core" }
-tutti-transport = { version = "0.1.2", path = "../tutti-transport" }
+tutti-core = { version = "0.1.3", path = "../tutti-core" }
+tutti-transport = { version = "0.1.3", path = "../tutti-transport" }
 
 [lints]
 workspace = true

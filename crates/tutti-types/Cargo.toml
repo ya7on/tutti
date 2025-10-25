@@ -1,6 +1,8 @@
 [package]
 name = "tutti-types"
-version = "0.1.2"
+description = "DTO for Tutti"
+repository = "https://github.com/ya7on/tutti"
+version = "0.1.3"
 edition.workspace = true
 license.workspace = true
 
