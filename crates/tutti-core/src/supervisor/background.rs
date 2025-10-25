@@ -185,11 +185,10 @@ impl<P: ProcessManager> SupervisorBackground<P> {
     }
 
     async fn down(&mut self, project_id: ProjectId) -> Result<()> {
-        let services = self.storage.remove(&project_id).unwrap_or_default();
-        for service in services {
-            if service.status == Status::Running {
+        if let Some(services) = self.storage.remove(&project_id) {
+            for service in services {
                 if let Some(pid) = service.pid {
-                    self.process_manager.kill(pid).await?;
+                    let _ = self.process_manager.kill(pid).await;
                 }
             }
         }
@@ -295,44 +294,44 @@ impl<P: ProcessManager> SupervisorBackground<P> {
 
     async fn end_of_logs(&mut self, project_id: ProjectId, service_name: String) -> Result<()> {
         let Some(running_services) = self.storage.get_mut(&project_id) else {
-            return Err(Error::ProjectNotFound(project_id));
+            return Ok(());
         };
 
         let Some(idx) = running_services.iter().position(|s| s.name == service_name) else {
-            return Err(Error::ServiceNotFound(project_id, service_name));
+            return Ok(());
         };
+
+        if matches!(running_services[idx].status, Status::Starting) {
+            return Ok(());
+        }
 
         running_services[idx].status = Status::Stopped;
 
-        let config = self
-            .config
-            .get(&project_id)
-            .ok_or_else(|| Error::ProjectNotFound(project_id.clone()))?;
+        let Some(config) = self.config.get(&project_id) else {
+            return Ok(());
+        };
+        let Some(service_cfg) = config.services.get(&running_services[idx].name).cloned() else {
+            return Ok(());
+        };
 
-        let service_config = config
-            .services
-            .get(&running_services[idx].name)
-            .cloned()
-            .ok_or_else(|| {
-                Error::ServiceNotFound(project_id.clone(), running_services[idx].name.clone())
-            })?;
-
-        match service_config.restart {
-            Restart::Always => {}
-            Restart::Never => {
-                running_services.remove(idx);
-                return Ok(());
-            }
+        if matches!(service_cfg.restart, Restart::Never) {
+            running_services.remove(idx);
+            return Ok(());
         }
 
+        running_services[idx].status = Status::Starting;
+        running_services[idx].pid = None;
+
         let proc_id = self
-            .start_service(service_config, service_name.clone(), project_id.clone())
+            .start_service(service_cfg, service_name.clone(), project_id.clone())
             .await?;
 
         if let Some(running_services) = self.storage.get_mut(&project_id) {
             if let Some(svc) = running_services.iter_mut().find(|s| s.name == service_name) {
-                svc.pid = Some(proc_id);
-                svc.status = Status::Starting;
+                if svc.pid.is_none() {
+                    svc.pid = Some(proc_id);
+                    svc.status = Status::Starting;
+                }
             }
         }
 

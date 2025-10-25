@@ -1,5 +1,5 @@
 use tokio::sync::mpsc;
-use tutti_types::Project;
+use tutti_types::{Project, ProjectId};
 
 use crate::{
     error::{Error, Result},
@@ -41,11 +41,9 @@ impl Supervisor {
     ///
     /// # Errors
     /// Returns an error if the supervisor fails to shutdown.
-    pub async fn down(&mut self, project: Project) -> Result<()> {
+    pub async fn down(&mut self, project_id: ProjectId) -> Result<()> {
         self.commands_tx
-            .send(SupervisorCommand::Down {
-                project_id: project.id,
-            })
+            .send(SupervisorCommand::Down { project_id })
             .await
             .map_err(|err| Error::Internal(err.to_string()))?;
 

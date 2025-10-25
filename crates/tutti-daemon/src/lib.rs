@@ -43,6 +43,17 @@ async fn unary_handler(message: TuttiApi, context: Context) -> TransportResult<T
 
             Ok(TuttiApi::Pong)
         }
+        TuttiApi::Down { project_id } => {
+            tracing::info!("Stopping project {project_id:?}");
+
+            let mut guard = context.supervisor.lock().await;
+            guard
+                .down(project_id)
+                .await
+                .map_err(|_| TransportError::UnknownMessage)?;
+
+            Ok(TuttiApi::Pong)
+        }
         _ => Err(TransportError::UnknownMessage),
     }
 }

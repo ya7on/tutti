@@ -28,5 +28,8 @@ pub enum TuttiApi {
         project: Project,
         services: Vec<String>,
     },
+    Down {
+        project_id: ProjectId,
+    },
     Subscribe,
 }

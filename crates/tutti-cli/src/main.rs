@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
+use tokio::signal;
 use tutti_config::load_from_path;
 use tutti_daemon::DaemonRunner;
 use tutti_transport::{api::TuttiApi, client::ipc_client::IpcClient};
@@ -54,6 +55,7 @@ async fn main() -> Result<()> {
 
             let path = PathBuf::from(file);
             let project = load_from_path(&path)?;
+            let project_id = project.id.clone();
 
             let mut client = match IpcClient::new(daemon_runner.socket_path()).await {
                 Ok(client) => client,
@@ -72,14 +74,35 @@ async fn main() -> Result<()> {
                 return Ok(());
             };
 
-            while let Some(message) = logs.recv().await {
-                if let TuttiApi::Log {
-                    project_id: _,
-                    service,
-                    message,
-                } = message.body
-                {
-                    logger::Logger::log(&service, &message);
+            let mut shutting_down = false;
+
+            loop {
+                tokio::select! {
+                    _ = signal::ctrl_c() => {
+                        if shutting_down {
+                            tracing::warn!("Second Ctrl+C: exiting immediately");
+                            break;
+                        }
+
+                        shutting_down = true;
+                        tracing::info!("Ctrl+C: stopping services (sending Down)...");
+
+                        if let Err(err) = client.down(project_id.clone()).await {
+                            tracing::error!("Failed to send Down: {err:?}");
+                            break;
+                        }
+                    }
+
+                    maybe_msg = logs.recv() => {
+                        if let Some(message) = maybe_msg {
+                            if let TuttiApi::Log { project_id: _, service, message } = message.body {
+                                logger::Logger::log(&service, &message);
+                            }
+                        } else {
+                            tracing::info!("Log stream ended");
+                            break;
+                        }
+                    }
                 }
             }
         }

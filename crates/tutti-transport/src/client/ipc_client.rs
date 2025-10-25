@@ -7,7 +7,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
-use tutti_types::Project;
+use tutti_types::{Project, ProjectId};
 
 use crate::{
     api::{MessageType, TuttiApi, TuttiMessage},
@@ -118,6 +118,18 @@ impl IpcClient {
         tracing::debug!("Starting services");
 
         self.send(TuttiApi::Up { project, services }).await?;
+
+        Ok(())
+    }
+
+    /// Stop a project.
+    ///
+    /// # Errors
+    /// Returns an error if the project cannot be stopped.
+    pub async fn down(&mut self, project_id: ProjectId) -> TransportResult<()> {
+        tracing::debug!("Stopping services");
+
+        self.send(TuttiApi::Down { project_id }).await?;
 
         Ok(())
     }
