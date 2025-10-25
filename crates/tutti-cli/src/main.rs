@@ -3,13 +3,14 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use tutti_config::load_from_path;
-use tutti_daemon::{DaemonRunner, DEFAULT_SYSTEM_DIR, SOCKET_FILE};
+use tutti_daemon::DaemonRunner;
 use tutti_transport::{api::TuttiApi, client::ipc_client::IpcClient};
 
 mod config;
 mod logger;
 
 const DEFAULT_FILENAMES: [&str; 3] = ["tutti.toml", "tutti.config.toml", "Tutti.toml"];
+const DEFAULT_SYSTEM_DIR: &str = "~/.tutti/";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -35,22 +36,26 @@ async fn main() -> Result<()> {
 
             let system_directory =
                 system_directory.map_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR), PathBuf::from);
-            let socket_file = system_directory.join(SOCKET_FILE);
 
-            // let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
-            // if daemon_runner.prepare().is_err() {
-            //     println!("Failed to prepare daemon");
-            //     return Ok(());
-            // }
+            let daemon_runner = DaemonRunner::new(system_directory);
+            if daemon_runner.prepare().is_err() {
+                println!("Failed to prepare daemon");
+                return Ok(());
+            }
+
+            if IpcClient::check_socket(&daemon_runner.socket_path()).await {
+                tracing::debug!("Daemon already running");
+            } else {
+                tracing::debug!("Starting daemon");
+                if let Err(err) = daemon_runner.spawn() {
+                    println!("Failed to spawn daemon: {err:?}");
+                }
+            }
 
             let path = PathBuf::from(file);
-            // if !IpcClient::check_socket(&path).await && daemon_runner.spawn().is_err() {
-            //     println!("Failed to spawn daemon");
-            // }
-
             let project = load_from_path(&path)?;
 
-            let mut client = match IpcClient::new(socket_file).await {
+            let mut client = match IpcClient::new(daemon_runner.socket_path()).await {
                 Ok(client) => client,
                 Err(err) => {
                     println!("Failed to connect to the daemon: {err:?}");
@@ -79,7 +84,17 @@ async fn main() -> Result<()> {
             }
         }
         config::Commands::Daemon { system_directory } => {
-            let daemon_runner = DaemonRunner::new(system_directory.as_ref().map(PathBuf::from));
+            let daemon_runner = DaemonRunner::new(
+                system_directory.map_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR), PathBuf::from),
+            );
+
+            if !IpcClient::check_socket(&daemon_runner.socket_path()).await
+                && daemon_runner.clear().is_err()
+            {
+                println!("Failed to clear daemon");
+                return Ok(());
+            }
+
             if daemon_runner.prepare().is_err() {
                 println!("Failed to prepare daemon");
                 return Ok(());

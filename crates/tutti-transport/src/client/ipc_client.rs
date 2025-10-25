@@ -87,6 +87,8 @@ impl IpcClient {
             .map_err(|err| TransportError::SendError(err.to_string()))?;
 
         while let Some(response) = response_rx.recv().await {
+            tracing::debug!("Getting message from rx");
+
             if let TuttiMessage {
                 id,
                 req_type: MessageType::Response,
@@ -113,6 +115,8 @@ impl IpcClient {
     /// # Errors
     /// Returns an error if the project cannot be started.
     pub async fn up(&mut self, project: Project, services: Vec<String>) -> TransportResult<()> {
+        tracing::debug!("Starting services");
+
         self.send(TuttiApi::Up { project, services }).await?;
 
         Ok(())

@@ -11,8 +11,6 @@ use tutti_transport::{
 
 pub const SOCKET_FILE: &str = "tutti.sock";
 
-pub const DEFAULT_SYSTEM_DIR: &str = "~/.tutti/";
-
 #[derive(Debug, Clone)]
 struct Context {
     supervisor: Arc<Mutex<Supervisor>>,
@@ -79,10 +77,8 @@ pub struct DaemonRunner {
 
 impl DaemonRunner {
     #[must_use]
-    pub fn new(system_dir: Option<PathBuf>) -> Self {
-        DaemonRunner {
-            system: system_dir.unwrap_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR)),
-        }
+    pub fn new(system: PathBuf) -> Self {
+        DaemonRunner { system }
     }
 
     /// Prepare the system directory.
@@ -100,6 +96,27 @@ impl DaemonRunner {
         Ok(())
     }
 
+    /// Clear the system directory.
+    ///
+    /// # Errors
+    /// Returns an error if the system directory cannot be cleared.
+    pub fn clear(&self) -> Result<(), String> {
+        if std::fs::exists(&self.system)
+            .map_err(|err| format!("Cannot clear system directory: {err:?}"))?
+        {
+            std::fs::remove_dir_all(&self.system)
+                .map_err(|err| format!("Cannot remove system directory: {err:?}"))?;
+        }
+
+        Ok(())
+    }
+
+    /// Get the socket path.
+    #[must_use]
+    pub fn socket_path(&self) -> PathBuf {
+        self.system.join(SOCKET_FILE)
+    }
+
     /// Spawn the daemon process.
     ///
     /// # Errors
@@ -107,7 +124,6 @@ impl DaemonRunner {
     pub fn spawn(&self) -> Result<(), String> {
         std::process::Command::new("tutti-cli")
             .arg("daemon")
-            .arg("--run")
             .spawn()
             .map_err(|err| format!("Cannot spawn daemon process: {err:?}"))?;
 

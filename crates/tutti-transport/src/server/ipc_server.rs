@@ -132,12 +132,14 @@ impl<C: Clone + Debug + Send + Sync + 'static> IpcServer<C> {
                 }
             });
 
-            while let Some(message) = rx.recv().await {
-                let Ok(serialized_response) = serde_json::to_vec(&message) else {
-                    continue;
-                };
-                let _ = sink.send(Bytes::from_iter(serialized_response)).await;
-            }
+            tokio::spawn(async move {
+                while let Some(message) = rx.recv().await {
+                    let Ok(serialized_response) = serde_json::to_vec(&message) else {
+                        continue;
+                    };
+                    let _ = sink.send(Bytes::from_iter(serialized_response)).await;
+                }
+            });
         }
     }
 }
