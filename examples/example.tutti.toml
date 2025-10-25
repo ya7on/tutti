@@ -17,3 +17,4 @@ cmd = ["bash", "-c", "echo before sleep 3 seconds && sleep 3 && echo after sleep
 
 [services.long3]
 cmd = ["bash", "-c", "echo before sleep 5 seconds && sleep 5 && echo after sleep"]
+restart = "always"

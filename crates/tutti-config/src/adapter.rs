@@ -1,8 +1,11 @@
 use std::{collections::BTreeMap, path::Path};
 
-use tutti_types::{Project, ProjectId, Service};
+use tutti_types::{Project, ProjectId, Restart, Service};
 
-use crate::{raw::RawProject, ConfigError};
+use crate::{
+    raw::{RawProject, RawRestart},
+    ConfigError,
+};
 
 impl RawProject {
     pub fn to_project(&self, path: &Path) -> Result<Project, ConfigError> {
@@ -22,6 +25,15 @@ impl RawProject {
                 }
                 // TODO: Add validations
 
+                let restart = raw_service
+                    .restart
+                    .as_ref()
+                    .map(|policy| match policy {
+                        RawRestart::Always => Restart::Always,
+                        RawRestart::Never => Restart::Never,
+                    })
+                    .unwrap_or_default();
+
                 Ok((
                     name.clone(),
                     Service {
@@ -30,6 +42,7 @@ impl RawProject {
                         env: raw_service.env.clone(),
                         deps: raw_service.deps.clone().unwrap_or_default(),
                         healthcheck: raw_service.healthcheck,
+                        restart,
                     },
                 ))
             })

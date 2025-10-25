@@ -22,6 +22,13 @@ pub struct Project {
     pub services: BTreeMap<String, Service>,
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub enum Restart {
+    Always,
+    #[default]
+    Never,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Service {
     pub cmd: Vec<String>,
@@ -29,4 +36,5 @@ pub struct Service {
     pub env: Option<HashMap<String, String>>,
     pub deps: Vec<String>,
     pub healthcheck: Option<()>, // TODO
+    pub restart: Restart,
 }

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use futures::StreamExt;
-use tutti_types::{Project, ProjectId, Service};
+use tutti_types::{Project, ProjectId, Restart, Service};
 
 use crate::{
     error::{Error, Result},
@@ -105,7 +105,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                     "Getting end of logs for project {project_id:?} and service {service:?}"
                 );
 
-                self.end_of_logs(project_id, service)?;
+                self.end_of_logs(project_id, service).await?;
                 Ok(())
             }
             SupervisorCommand::HealthCheckSuccess {
@@ -251,7 +251,7 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         }
 
         {
-            let commands_tx = self.commands_tx.clone();
+            let _commands_tx = self.commands_tx.clone();
             let output_tx = self.output_tx.clone();
             let mut stderr = process.stderr;
             let project_id_clone = project_id.clone();
@@ -269,15 +269,6 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                     {
                         tracing::error!("Failed to send log event: {}", err);
                     }
-                }
-                if let Err(err) = commands_tx
-                    .send(SupervisorCommand::EndOfLogs {
-                        project_id: project_id_clone.clone(),
-                        service: service_name_clone.clone(),
-                    })
-                    .await
-                {
-                    tracing::error!("Failed to send end of logs command: {}", err);
                 }
             });
         }
@@ -302,17 +293,48 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         Ok(process.id)
     }
 
-    fn end_of_logs(&mut self, project_id: ProjectId, service: String) -> Result<()> {
+    async fn end_of_logs(&mut self, project_id: ProjectId, service_name: String) -> Result<()> {
         let Some(running_services) = self.storage.get_mut(&project_id) else {
             return Err(Error::ProjectNotFound(project_id));
         };
-        let Some(service) = running_services.iter_mut().find(|s| s.name == service) else {
-            return Err(Error::ServiceNotFound(project_id, service));
+
+        let Some(idx) = running_services.iter().position(|s| s.name == service_name) else {
+            return Err(Error::ServiceNotFound(project_id, service_name));
         };
 
-        service.status = Status::Stopped;
+        running_services[idx].status = Status::Stopped;
 
-        // TODO: Restart policy
+        let config = self
+            .config
+            .get(&project_id)
+            .ok_or_else(|| Error::ProjectNotFound(project_id.clone()))?;
+
+        let service_config = config
+            .services
+            .get(&running_services[idx].name)
+            .cloned()
+            .ok_or_else(|| {
+                Error::ServiceNotFound(project_id.clone(), running_services[idx].name.clone())
+            })?;
+
+        match service_config.restart {
+            Restart::Always => {}
+            Restart::Never => {
+                running_services.remove(idx);
+                return Ok(());
+            }
+        }
+
+        let proc_id = self
+            .start_service(service_config, service_name.clone(), project_id.clone())
+            .await?;
+
+        if let Some(running_services) = self.storage.get_mut(&project_id) {
+            if let Some(svc) = running_services.iter_mut().find(|s| s.name == service_name) {
+                svc.pid = Some(proc_id);
+                svc.status = Status::Starting;
+            }
+        }
 
         Ok(())
     }
@@ -480,6 +502,7 @@ mod tests {
                             env: None,
                             deps: vec!["B".to_string(), "C".to_string()],
                             healthcheck: None,
+                            restart: Restart::Always,
                         },
                     ),
                     (
@@ -490,6 +513,7 @@ mod tests {
                             env: None,
                             deps: vec![],
                             healthcheck: None,
+                            restart: Restart::Always,
                         },
                     ),
                     (
@@ -500,6 +524,7 @@ mod tests {
                             env: None,
                             deps: vec!["D".to_string(), "E".to_string()],
                             healthcheck: None,
+                            restart: Restart::Always,
                         },
                     ),
                     (
@@ -510,6 +535,7 @@ mod tests {
                             env: None,
                             deps: vec!["F".to_string()],
                             healthcheck: None,
+                            restart: Restart::Always,
                         },
                     ),
                     (
@@ -520,6 +546,7 @@ mod tests {
                             env: None,
                             deps: vec![],
                             healthcheck: None,
+                            restart: Restart::Always,
                         },
                     ),
                     (
@@ -530,6 +557,7 @@ mod tests {
                             env: None,
                             deps: vec![],
                             healthcheck: None,
+                            restart: Restart::Always,
                         },
                     ),
                 ]
