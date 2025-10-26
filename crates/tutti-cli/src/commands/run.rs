@@ -6,7 +6,7 @@ use tutti_config::load_from_path;
 use tutti_daemon::DaemonRunner;
 use tutti_transport::{api::TuttiApi, client::ipc_client::IpcClient};
 
-use crate::{logger, DEFAULT_FILENAMES, DEFAULT_SYSTEM_DIR};
+use crate::{logger::Logger, DEFAULT_FILENAMES, DEFAULT_SYSTEM_DIR};
 
 pub async fn run(
     file: Option<String>,
@@ -63,6 +63,7 @@ pub async fn run(
     };
 
     let mut shutting_down = false;
+    let mut logger = Logger::default();
 
     loop {
         tokio::select! {
@@ -89,7 +90,7 @@ pub async fn run(
                             return Ok(());
                         }
                         TuttiApi::Log { project_id: _, service, message } => {
-                            logger::Logger::log(&service, &message);
+                            logger.log(&service, &message);
                         }
                         _ => {}
                     }

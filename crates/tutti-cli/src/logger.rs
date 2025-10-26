@@ -1,10 +1,16 @@
-use std::hash::{DefaultHasher, Hash, Hasher};
-
 use colored::{Color, Colorize};
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::io::{self, Stdout, Write};
 
-pub struct Logger;
+pub struct Logger<W: Write = Stdout> {
+    output: W,
+}
 
-impl Logger {
+impl<W: Write> Logger<W> {
+    pub fn new(output: W) -> Self {
+        Self { output }
+    }
+
     fn string_to_color(s: &str) -> Color {
         let colors = [
             Color::Green,
@@ -25,8 +31,32 @@ impl Logger {
         colors[idx]
     }
 
-    pub fn log(service_name: &str, message: &str) {
+    pub fn log(&mut self, service_name: &str, message: &str) {
         let prefix = format!("[{service_name}]").color(Self::string_to_color(service_name));
-        print!("{prefix} {message}");
+        let _ = writeln!(self.output, "{prefix} {message}");
+    }
+}
+
+impl Logger {
+    pub fn default() -> Self {
+        Self::new(io::stdout())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_log() {
+        let buffer = Vec::new();
+        let mut logger = Logger::new(Cursor::new(buffer));
+
+        logger.log("test", "message");
+
+        let output = String::from_utf8(logger.output.into_inner()).unwrap();
+        assert!(output.contains("[test]"));
+        assert!(output.contains("message"));
     }
 }

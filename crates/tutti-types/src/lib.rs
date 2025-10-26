@@ -38,3 +38,14 @@ pub struct Service {
     pub healthcheck: Option<()>, // TODO
     pub restart: Restart,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_project_id_display() {
+        let project_id = ProjectId(PathBuf::from("/path/to/project"));
+        assert_eq!(project_id.to_string(), "/path/to/project");
+    }
+}
