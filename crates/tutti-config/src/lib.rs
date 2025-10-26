@@ -54,29 +54,52 @@ pub fn parse_toml(config: &str, path: &std::path::Path) -> Result<Project, Confi
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{collections::HashMap, path::PathBuf};
+
+    use tutti_types::Restart;
 
     use super::*;
 
     #[test]
     fn parse_toml_ok() {
         let txt = r#"
+            version = 100500
+
             [services.api]
             cmd = ["cargo","run","--bin","api"]
+            cwd = "/home/user"
+            env = { RUST_LOG = "info" }
+            deps = ["db"]
+            restart = "always"
 
             [services.db]
             cmd = ["postgres","-D",".pg"]
+            restart = "never"
         "#;
         let p = parse_toml(txt, std::path::Path::new("config.toml")).unwrap();
         assert!(p.services.contains_key("api"));
+        assert_eq!(p.version, 100500);
         assert_eq!(p.services["api"].cmd, vec!["cargo", "run", "--bin", "api"]);
-        assert_eq!(p.version, 1);
+        assert_eq!(p.services["api"].cwd, Some(PathBuf::from("/home/user")));
+        assert_eq!(
+            p.services["api"].env,
+            Some(HashMap::from_iter(vec![(
+                "RUST_LOG".to_string(),
+                "info".to_string()
+            )]))
+        );
+        assert_eq!(p.services["api"].deps, vec!["db"]);
+        assert_eq!(p.services["api"].restart, Restart::Always);
+        assert_eq!(p.services["db"].cmd, vec!["postgres", "-D", ".pg"]);
+        assert_eq!(p.services["db"].cwd, None);
+        assert_eq!(p.services["db"].env, None);
+        assert!(p.services["db"].deps.is_empty());
+        assert_eq!(p.services["db"].restart, Restart::Never);
     }
 
     #[test]
     fn parse_auto_ok() {
         let txt = r#"
-            version = 2
             [services.api]
             cmd = ["cargo","run","--bin","api"]
 
@@ -86,7 +109,7 @@ mod tests {
         let p = parse_auto(txt, std::path::Path::new("config.toml")).unwrap();
         assert!(p.services.contains_key("api"));
         assert_eq!(p.services["api"].cmd, vec!["cargo", "run", "--bin", "api"]);
-        assert_eq!(p.version, 2);
+        assert_eq!(p.version, 1);
     }
 
     #[test]
