@@ -59,4 +59,9 @@ mod tests {
         assert!(output.contains("[test]"));
         assert!(output.contains("message"));
     }
+
+    #[test]
+    fn test_log_default() {
+        let _logger = Logger::default();
+    }
 }
