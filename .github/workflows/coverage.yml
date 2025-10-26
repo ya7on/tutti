@@ -13,6 +13,9 @@ jobs:
       checks: write
       id-token: write
 
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,20 +34,10 @@ jobs:
           name: lcov
           path: lcov.info
 
-      - name: Upload to Codecov (OIDC)
-        if: ${{ !secrets.CODECOV_TOKEN }}
-        uses: codecov/codecov-action@v5
-        with:
-          use_oidc: true
-          files: lcov.info
-          fail_ci_if_error: true
-          flags: rust
-
-      - name: Upload to Codecov (token)
-        if: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           fail_ci_if_error: true
           flags: rust
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
