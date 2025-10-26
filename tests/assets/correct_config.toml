@@ -1,0 +1,5 @@
+version = 1
+
+[services.service]
+cmd = ["echo","hello world"]
+deps = ["long1"]
