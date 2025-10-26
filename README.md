@@ -5,6 +5,7 @@
 [![CI](https://github.com/ya7on/tutti/actions/workflows/rust.yml/badge.svg)](https://github.com/ya7on/tutti/actions/workflows/rust.yml)
 [![Docs](https://img.shields.io/github/actions/workflow/status/ya7on/tutti/docs.yml?label=docs)](https://ya7on.github.io/tutti)
 [![codecov](https://codecov.io/gh/ya7on/tutti/graph/badge.svg?token=UCYX4KOI0F)](https://codecov.io/gh/ya7on/tutti)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ya7on/tutti)
 
 A lightweight CLI tool for orchestrating local processes. Start multiple services with one command, handle dependencies automatically, and see all logs in one place.
 
