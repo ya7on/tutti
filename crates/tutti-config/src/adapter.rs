@@ -55,3 +55,132 @@ impl RawProject {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashMap, path::PathBuf};
+
+    use crate::raw::RawService;
+
+    use super::*;
+
+    #[test]
+    fn test_raw_to_project_success() {
+        let raw = {
+            let mut services = BTreeMap::new();
+            services.insert(
+                "full_service".into(),
+                RawService {
+                    cmd: vec!["echo".to_owned(), "hello".to_owned()],
+                    cwd: Some("/tmp".to_owned()),
+                    env: Some(HashMap::from_iter(vec![(
+                        "KEY".to_owned(),
+                        "Value".to_owned(),
+                    )])),
+                    deps: Some(vec!["empty_service".to_owned()]),
+                    healthcheck: None,
+                    restart: Some(RawRestart::Always),
+                },
+            );
+            services.insert(
+                "empty_service".into(),
+                RawService {
+                    cmd: vec!["echo".to_owned(), "hello".to_owned()],
+                    cwd: None,
+                    env: None,
+                    deps: None,
+                    healthcheck: None,
+                    restart: None,
+                },
+            );
+            RawProject {
+                version: 1,
+                services: services,
+            }
+        };
+        let expected = {
+            let mut services = BTreeMap::new();
+            services.insert(
+                "full_service".into(),
+                Service {
+                    cmd: vec!["echo".to_owned(), "hello".to_owned()],
+                    cwd: Some(PathBuf::from("/tmp")),
+                    env: Some(HashMap::from_iter(vec![(
+                        "KEY".to_owned(),
+                        "Value".to_owned(),
+                    )])),
+                    deps: vec!["empty_service".to_owned()],
+                    healthcheck: None,
+                    restart: Restart::Always,
+                },
+            );
+            services.insert(
+                "empty_service".into(),
+                Service {
+                    cmd: vec!["echo".to_owned(), "hello".to_owned()],
+                    cwd: None,
+                    env: None,
+                    deps: vec![],
+                    healthcheck: None,
+                    restart: Restart::Never,
+                },
+            );
+            Project {
+                id: ProjectId("test".into()),
+                version: 1,
+                services: services,
+            }
+        };
+
+        let actual = raw.to_project(&PathBuf::from("test")).unwrap();
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_empty_cmd() {
+        {
+            let raw = {
+                let mut services = BTreeMap::new();
+                services.insert(
+                    "test".into(),
+                    RawService {
+                        cmd: vec![],
+                        cwd: None,
+                        env: None,
+                        deps: None,
+                        healthcheck: None,
+                        restart: None,
+                    },
+                );
+                RawProject {
+                    version: 1,
+                    services: services,
+                }
+            };
+            let result = raw.to_project(&PathBuf::from("test"));
+            assert!(result.is_err());
+        }
+        {
+            let raw = {
+                let mut services = BTreeMap::new();
+                services.insert(
+                    "test".into(),
+                    RawService {
+                        cmd: vec!["echo".to_owned(), "".to_owned()],
+                        cwd: None,
+                        env: None,
+                        deps: None,
+                        healthcheck: None,
+                        restart: None,
+                    },
+                );
+                RawProject {
+                    version: 1,
+                    services: services,
+                }
+            };
+            let result = raw.to_project(&PathBuf::from("test"));
+            assert!(result.is_err());
+        }
+    }
+}
