@@ -37,4 +37,7 @@ pub enum SupervisorEvent {
         service: String,
         message: String,
     },
+    ProjectStopped {
+        project_id: ProjectId,
+    },
 }

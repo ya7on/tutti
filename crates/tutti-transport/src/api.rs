@@ -32,4 +32,7 @@ pub enum TuttiApi {
         project_id: ProjectId,
     },
     Subscribe,
+    ProjectStopped {
+        project_id: ProjectId,
+    },
 }

@@ -192,6 +192,12 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 }
             }
         }
+
+        let _ = self
+            .output_tx
+            .send(SupervisorEvent::ProjectStopped { project_id })
+            .await;
+
         Ok(())
     }
 
@@ -292,30 +298,48 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         Ok(process.id)
     }
 
+    #[tracing::instrument(skip_all)]
     async fn end_of_logs(&mut self, project_id: ProjectId, service_name: String) -> Result<()> {
+        tracing::info!("End of logs for service {}", service_name);
+
         let Some(running_services) = self.storage.get_mut(&project_id) else {
+            tracing::warn!("Project not found");
             return Ok(());
         };
 
         let Some(idx) = running_services.iter().position(|s| s.name == service_name) else {
+            tracing::warn!("Service not found");
             return Ok(());
         };
 
         if matches!(running_services[idx].status, Status::Starting) {
+            tracing::warn!("Service already starting");
             return Ok(());
         }
 
         running_services[idx].status = Status::Stopped;
 
         let Some(config) = self.config.get(&project_id) else {
+            tracing::warn!("Project config not found");
             return Ok(());
         };
         let Some(service_cfg) = config.services.get(&running_services[idx].name).cloned() else {
+            tracing::warn!("Service config not found");
             return Ok(());
         };
 
         if matches!(service_cfg.restart, Restart::Never) {
             running_services.remove(idx);
+
+            if running_services.is_empty() {
+                self.storage.remove(&project_id);
+
+                let _ = self
+                    .output_tx
+                    .send(SupervisorEvent::ProjectStopped { project_id })
+                    .await;
+            }
+
             return Ok(());
         }
 
