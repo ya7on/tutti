@@ -33,7 +33,9 @@ impl<W: Write> Logger<W> {
 
     pub fn log(&mut self, service_name: &str, message: &str) {
         let prefix = format!("[{service_name}]").color(Self::string_to_color(service_name));
-        let _ = writeln!(self.output, "{prefix} {message}");
+        for line in message.lines() {
+            let _ = writeln!(self.output, "{prefix} {line}");
+        }
     }
 }
 
@@ -53,11 +55,13 @@ mod tests {
         let buffer = Vec::new();
         let mut logger = Logger::new(Cursor::new(buffer));
 
-        logger.log("test", "message");
+        logger.log("test", "line1\nline2");
 
         let output = String::from_utf8(logger.output.into_inner()).unwrap();
-        assert!(output.contains("[test]"));
-        assert!(output.contains("message"));
+        let service = "[test]".color(Color::BrightGreen);
+        let line1 = format!("{service} line1");
+        let line2 = format!("{service} line2");
+        assert_eq!(output, format!("{line1}\n{line2}\n"));
     }
 
     #[test]
