@@ -33,7 +33,9 @@ impl<W: Write> Logger<W> {
 
     pub fn log(&mut self, service_name: &str, message: &str) {
         let prefix = format!("[{service_name}]").color(Self::string_to_color(service_name));
-        let _ = writeln!(self.output, "{prefix} {message}");
+        for line in message.lines() {
+            let _ = writeln!(self.output, "{prefix} {line}");
+        }
     }
 }
 
