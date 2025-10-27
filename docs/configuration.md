@@ -27,6 +27,7 @@ cmd = ["command", "arg1", "arg2"]
 cwd = "/path/to/working/directory"
 env = { VAR1 = "value1", VAR2 = "value2" }
 deps = ["other_service"]
+restart = "always"
 ```
 
 #### Service Parameters
@@ -35,12 +36,14 @@ deps = ["other_service"]
 - `cwd` (optional) - Working directory for the command execution
 - `env` (optional) - Environment variables for the service
 - `deps` (optional) - List of dependencies - names of other services that must be started before this one
+- `restart` (optional, defaults to `never`) - Restart policy for the service (`always`, `never`)
 
 #### Parameter Requirements
 
 - `cmd` cannot be an empty array
 - `cmd` cannot contain empty strings
 - `deps` can only contain names of existing services
+- `restart` can only be one of `always`, `never`
 
 ## Environment Variables
 
