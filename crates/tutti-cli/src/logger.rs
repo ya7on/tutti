@@ -55,11 +55,13 @@ mod tests {
         let buffer = Vec::new();
         let mut logger = Logger::new(Cursor::new(buffer));
 
-        logger.log("test", "message");
+        logger.log("test", "line1\nline2");
 
         let output = String::from_utf8(logger.output.into_inner()).unwrap();
-        assert!(output.contains("[test]"));
-        assert!(output.contains("message"));
+        let service = "[test]".color(Color::BrightGreen);
+        let line1 = format!("{service} line1");
+        let line2 = format!("{service} line2");
+        assert_eq!(output, format!("{line1}\n{line2}\n"));
     }
 
     #[test]
