@@ -10,7 +10,7 @@ use crate::{logger::Logger, DEFAULT_FILENAMES, DEFAULT_SYSTEM_DIR};
 
 pub async fn run(
     file: Option<String>,
-    services: Vec<String>,
+    mut services: Vec<String>,
     system_directory: Option<String>,
     _kill_timeout: Option<u64>,
 ) -> Result<()> {
@@ -52,6 +52,14 @@ pub async fn run(
             return Ok(());
         }
     };
+
+    if services.is_empty() {
+        services = project
+            .services
+            .iter()
+            .map(|(name, _)| name.to_owned())
+            .collect();
+    }
 
     if client.up(project, services).await.is_err() {
         println!("Failed to start project");
