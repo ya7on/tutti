@@ -56,8 +56,8 @@ pub async fn run(
     if services.is_empty() {
         services = project
             .services
-            .iter()
-            .map(|(name, _)| name.to_owned())
+            .keys()
+            .map(std::borrow::ToOwned::to_owned)
             .collect();
     }
 
