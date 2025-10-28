@@ -2,7 +2,7 @@
 name = "tutti-types"
 description = "DTO for Tutti"
 repository = "https://github.com/ya7on/tutti"
-version = "0.1.3"
+version = "0.1.4"
 edition.workspace = true
 license.workspace = true
 
