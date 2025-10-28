@@ -37,6 +37,13 @@ impl<W: Write> Logger<W> {
             let _ = writeln!(self.output, "{prefix} {line}");
         }
     }
+
+    pub fn system(&mut self, message: &str) {
+        let prefix = "[system]".color(Color::Red);
+        for line in message.lines() {
+            let _ = writeln!(self.output, "{prefix} {line}");
+        }
+    }
 }
 
 impl Logger {

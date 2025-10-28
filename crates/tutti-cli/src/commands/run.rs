@@ -100,6 +100,10 @@ pub async fn run(
                         TuttiApi::Log { project_id: _, service, message } => {
                             logger.log(&service, &message);
                         }
+                        TuttiApi::Error { project_id: _, message } => {
+                            logger.system(&message);
+                            return Ok(());
+                        }
                         _ => {}
                     }
                 } else {

@@ -132,10 +132,29 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         tracing::info!("Starting {services:?} services for project {project_id:?}");
 
         let Some(config) = self.config.get(&project_id).cloned() else {
+            let _ = self
+                .output_tx
+                .send(SupervisorEvent::Error {
+                    project_id: project_id.clone(),
+                    message: "Project not found".to_owned(),
+                })
+                .await;
             return Err(Error::ProjectNotFound(project_id));
         };
 
-        let services = Self::toposort(&config, &services)?;
+        let services = match Self::toposort(&config, &services) {
+            Ok(services) => services,
+            Err(err) => {
+                let _ = self
+                    .output_tx
+                    .send(SupervisorEvent::Error {
+                        project_id: project_id.clone(),
+                        message: err.to_string(),
+                    })
+                    .await;
+                return Err(err);
+            }
+        };
 
         let spawned: HashSet<_> = self
             .storage
@@ -146,6 +165,13 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         // TODO: Recalculate dependencies
         for service_name in services {
             let Some(service) = config.services.get(&service_name) else {
+                let _ = self
+                    .output_tx
+                    .send(SupervisorEvent::Error {
+                        project_id: project_id.clone(),
+                        message: format!("Service {service_name} not found"),
+                    })
+                    .await;
                 return Err(Error::ServiceNotFound(project_id, service_name));
             };
 
