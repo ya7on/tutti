@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 
-use crate::commands::{daemon, run};
+use crate::{
+    commands::{daemon_start, daemon_stop, run},
+    config::DaemonCmd,
+};
 
 mod commands;
 mod config;
@@ -23,7 +26,13 @@ async fn main() -> Result<()> {
             system_directory,
             kill_timeout,
         } => run(file, services, system_directory, kill_timeout).await?,
-        config::Commands::Daemon { system_directory } => daemon(system_directory).await?,
+        config::Commands::Daemon {
+            system_directory,
+            cmd,
+        } => match cmd {
+            DaemonCmd::Run => daemon_start(system_directory).await?,
+            DaemonCmd::Stop => daemon_stop(system_directory).await?,
+        },
     }
 
     Ok(())

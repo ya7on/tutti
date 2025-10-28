@@ -31,6 +31,7 @@ pub enum TuttiApi {
     Down {
         project_id: ProjectId,
     },
+    Shutdown,
     Subscribe,
     ProjectStopped {
         project_id: ProjectId,

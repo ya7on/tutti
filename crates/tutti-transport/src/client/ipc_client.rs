@@ -134,6 +134,33 @@ impl IpcClient {
         Ok(())
     }
 
+    /// Stop a project.
+    ///
+    /// # Errors
+    /// Returns an error if the project cannot be stopped.
+    pub async fn shutdown(&mut self) -> TransportResult<()> {
+        tracing::debug!("Stopping services");
+
+        self.message_counter += 1;
+        let message_id = self.message_counter;
+
+        let (response_tx, _response_rx) = mpsc::channel::<TuttiMessage>(BUFFER_SIZE);
+
+        self.in_socket
+            .send((
+                TuttiMessage {
+                    id: message_id,
+                    req_type: MessageType::Request,
+                    body: TuttiApi::Shutdown,
+                },
+                response_tx,
+            ))
+            .await
+            .map_err(|err| TransportError::SendError(err.to_string()))?;
+
+        Ok(())
+    }
+
     /// Subscribe to Tutti events.
     ///
     /// # Errors

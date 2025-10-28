@@ -27,9 +27,21 @@ pub enum Commands {
         #[arg(short, long)]
         kill_timeout: Option<u64>,
     },
+    /// Manage tutti daemon service
     Daemon {
+        #[command(subcommand)]
+        cmd: DaemonCmd,
+
         /// System directory path
         #[arg(short, long)]
         system_directory: Option<String>,
     },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum DaemonCmd {
+    /// Start the daemon service
+    Run,
+    /// Stop the daemon service
+    Stop,
 }

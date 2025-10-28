@@ -6,7 +6,7 @@ use tutti_transport::client::ipc_client::IpcClient;
 
 use crate::DEFAULT_SYSTEM_DIR;
 
-pub async fn daemon(system_directory: Option<String>) -> Result<()> {
+pub async fn daemon_start(system_directory: Option<String>) -> Result<()> {
     let daemon_runner = DaemonRunner::new(
         system_directory.map_or_else(|| PathBuf::from(DEFAULT_SYSTEM_DIR), PathBuf::from),
     );
