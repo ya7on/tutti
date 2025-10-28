@@ -6,6 +6,12 @@
 [![Docs](https://img.shields.io/github/actions/workflow/status/ya7on/tutti/docs.yml?label=docs)](https://ya7on.github.io/tutti)
 [![codecov](https://codecov.io/gh/ya7on/tutti/graph/badge.svg?token=UCYX4KOI0F)](https://codecov.io/gh/ya7on/tutti)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/ya7on/tutti)
+[![MVP](https://img.shields.io/badge/WARNING-NOT_PRODUCTION_READY-red)](https://github.com/ya7on/tutti/issues)
+[![GitHub top language](https://img.shields.io/github/languages/top/ya7on/tutti)](https://github.com/ya7on/tutti)
+[![Deps.rs Crate Dependencies (latest)](https://img.shields.io/deps-rs/tutti-cli/latest)](https://deps.rs/crate/tutti-core/)
+[![Crates.io Total Downloads](https://img.shields.io/crates/d/tutti-cli)](https://crates.io/crates/tutti-cli)
+[![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/ya7on/tutti)](https://github.com/ya7on/tutti)
+
 
 A lightweight CLI tool for orchestrating local processes. Start multiple services with one command, handle dependencies automatically, and see all logs in one place.
 
