@@ -50,6 +50,19 @@ impl Supervisor {
         Ok(())
     }
 
+    /// Shutdown the supervisor.
+    ///
+    /// # Errors
+    /// Returns an error if the supervisor fails to shutdown.
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.commands_tx
+            .send(SupervisorCommand::Shutdown)
+            .await
+            .map_err(|err| Error::Internal(err.to_string()))?;
+
+        Ok(())
+    }
+
     /// Start the supervisor.
     ///
     /// # Errors

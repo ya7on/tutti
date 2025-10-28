@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, process, sync::Arc};
 
 use futures_util::FutureExt;
 use tokio::sync::{mpsc::Receiver, Mutex};
@@ -53,6 +53,23 @@ async fn unary_handler(message: TuttiApi, context: Context) -> TransportResult<T
                 .map_err(|_| TransportError::UnknownMessage)?;
 
             Ok(TuttiApi::Pong)
+        }
+        TuttiApi::Shutdown => {
+            tracing::info!("Stopping supervisor");
+
+            let mut guard = context.supervisor.lock().await;
+            guard
+                .shutdown()
+                .await
+                .map_err(|_| TransportError::UnknownMessage)?;
+
+            #[allow(unsafe_code)]
+            unsafe {
+                let pid = libc::pid_t::try_from(process::id()).unwrap_or_default();
+                libc::kill(pid, libc::SIGTERM);
+            }
+
+            Ok(TuttiApi::Shutdown)
         }
         _ => Err(TransportError::UnknownMessage),
     }

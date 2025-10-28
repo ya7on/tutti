@@ -16,6 +16,7 @@ pub enum SupervisorCommand {
     Down {
         project_id: ProjectId,
     },
+    Shutdown,
     EndOfLogs {
         project_id: ProjectId,
         service: String,

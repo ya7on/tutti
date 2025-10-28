@@ -97,6 +97,12 @@ impl<P: ProcessManager> SupervisorBackground<P> {
                 self.down(project_id).await?;
                 Ok(())
             }
+            SupervisorCommand::Shutdown => {
+                tracing::debug!("Shutting down supervisor");
+
+                self.shutdown().await?;
+                Ok(())
+            }
             SupervisorCommand::EndOfLogs {
                 project_id,
                 service,
@@ -224,6 +230,13 @@ impl<P: ProcessManager> SupervisorBackground<P> {
             .send(SupervisorEvent::ProjectStopped { project_id })
             .await;
 
+        Ok(())
+    }
+
+    async fn shutdown(&mut self) -> Result<()> {
+        for project_id in self.storage.keys().cloned().collect::<Vec<_>>() {
+            self.down(project_id).await?;
+        }
         Ok(())
     }
 
