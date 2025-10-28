@@ -17,7 +17,10 @@ const DEFAULT_SYSTEM_DIR: &str = "~/.tutti/";
 async fn main() -> Result<()> {
     let cli = config::Cli::parse();
 
-    tracing_subscriber::fmt::init();
+    #[cfg(debug_assertions)]
+    {
+        tracing_subscriber::fmt::init();
+    }
 
     match cli.command {
         config::Commands::Run {

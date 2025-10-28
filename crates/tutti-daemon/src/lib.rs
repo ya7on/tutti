@@ -162,10 +162,19 @@ impl DaemonRunner {
     pub fn spawn(&self) -> Result<(), String> {
         std::process::Command::new("tutti-cli")
             .arg("daemon")
+            .arg("run")
+            .env("RUST_LOG", "ERROR")
             .spawn()
             .map_err(|err| format!("Cannot spawn daemon process: {err:?}"))?;
 
-        Ok(())
+        for _ in 0..10 {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            if self.socket_path().exists() {
+                return Ok(());
+            }
+        }
+
+        Err("Timeout waiting for daemon process to start".to_string())
     }
 
     /// Start the daemon process.
