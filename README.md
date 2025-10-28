@@ -88,6 +88,7 @@ cmd = ["python", "server.py"]
 deps = ["database"]
 env = { DATABASE_URL = "postgresql://localhost/mydb" }
 cwd = "./backend"
+restart = "always"
 
 [services.frontend]
 cmd = ["npm", "run", "dev"]
@@ -100,6 +101,7 @@ cwd = "./frontend"
 - `deps` (optional) - List of service dependencies
 - `env` (optional) - Environment variables
 - `cwd` (optional) - Working directory
+- `restart` (optional) - Restart policy (default: "never")
 
 ## Documentation
 

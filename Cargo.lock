@@ -815,6 +815,7 @@ dependencies = [
  "futures",
  "futures-core",
  "libc",
+ "thiserror",
  "tokio",
  "tokio-stream",
  "tokio-util",
