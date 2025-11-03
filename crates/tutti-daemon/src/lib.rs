@@ -98,6 +98,20 @@ async fn stream_handler(context: Context) -> TransportResult<TuttiApi> {
         SupervisorEvent::ProjectStopped { project_id } => {
             Ok(TuttiApi::ProjectStopped { project_id })
         }
+        SupervisorEvent::ServiceStopped {
+            project_id,
+            service,
+        } => Ok(TuttiApi::ServiceStopped {
+            project_id,
+            service,
+        }),
+        SupervisorEvent::ServiceRestarted {
+            project_id,
+            service,
+        } => Ok(TuttiApi::ServiceRestarted {
+            project_id,
+            service,
+        }),
         SupervisorEvent::Error {
             project_id,
             message,

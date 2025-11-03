@@ -36,6 +36,14 @@ pub enum TuttiApi {
     ProjectStopped {
         project_id: ProjectId,
     },
+    ServiceStopped {
+        project_id: ProjectId,
+        service: String,
+    },
+    ServiceRestarted {
+        project_id: ProjectId,
+        service: String,
+    },
     Error {
         project_id: ProjectId,
         message: String,

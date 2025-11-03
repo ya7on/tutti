@@ -295,7 +295,6 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         }
 
         {
-            let _commands_tx = self.commands_tx.clone();
             let output_tx = self.output_tx.clone();
             let mut stderr = process.stderr;
             let project_id_clone = project_id.clone();
@@ -370,6 +369,14 @@ impl<P: ProcessManager> SupervisorBackground<P> {
         if matches!(service_cfg.restart, Restart::Never) {
             running_services.remove(idx);
 
+            let _ = self
+                .output_tx
+                .send(SupervisorEvent::ServiceStopped {
+                    project_id: project_id.clone(),
+                    service: service_name.clone(),
+                })
+                .await;
+
             if running_services.is_empty() {
                 self.storage.remove(&project_id);
 
@@ -384,6 +391,14 @@ impl<P: ProcessManager> SupervisorBackground<P> {
 
         running_services[idx].status = Status::Starting;
         running_services[idx].pid = None;
+
+        let _ = self
+            .output_tx
+            .send(SupervisorEvent::ServiceRestarted {
+                project_id: project_id.clone(),
+                service: service_name.clone(),
+            })
+            .await;
 
         let proc_id = self
             .start_service(service_cfg, service_name.clone(), project_id.clone())

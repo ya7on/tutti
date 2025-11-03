@@ -38,8 +38,15 @@ impl<W: Write> Logger<W> {
         }
     }
 
+    pub fn error(&mut self, message: &str) {
+        let prefix = "[error]".color(Color::Red);
+        for line in message.lines() {
+            let _ = writeln!(self.output, "{prefix} {line}");
+        }
+    }
+
     pub fn system(&mut self, message: &str) {
-        let prefix = "[system]".color(Color::Red);
+        let prefix = "[system]".color(Color::Yellow);
         for line in message.lines() {
             let _ = writeln!(self.output, "{prefix} {line}");
         }
