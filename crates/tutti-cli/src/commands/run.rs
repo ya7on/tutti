@@ -95,13 +95,20 @@ pub async fn run(
                     match message.body {
                         TuttiApi::ProjectStopped { project_id } => {
                             tracing::info!("Project stopped: {}", project_id);
+                            logger.system("All services stopped");
                             return Ok(());
+                        }
+                        TuttiApi::ServiceStopped { project_id: _, service } => {
+                            logger.system(&format!("Service stopped: {service}"));
+                        }
+                        TuttiApi::ServiceRestarted { project_id: _, service } => {
+                            logger.system(&format!("Service restarted: {service}"));
                         }
                         TuttiApi::Log { project_id: _, service, message } => {
                             logger.log(&service, &message);
                         }
                         TuttiApi::Error { project_id: _, message } => {
-                            logger.system(&message);
+                            logger.error(&message);
                             return Ok(());
                         }
                         _ => {}
