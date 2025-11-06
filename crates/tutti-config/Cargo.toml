@@ -5,6 +5,7 @@ repository = "https://github.com/ya7on/tutti"
 version = "0.1.5"
 edition.workspace = true
 license.workspace = true
+rust-version = "1.82.0"
 
 [features]
 default = ["toml"]

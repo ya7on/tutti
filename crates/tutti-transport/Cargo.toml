@@ -5,6 +5,7 @@ repository = "https://github.com/ya7on/tutti"
 version = "0.1.5"
 edition.workspace = true
 license.workspace = true
+rust-version = "1.82.0"
 
 [dependencies]
 bytes = { workspace = true }
@@ -12,7 +13,6 @@ futures-util = { workspace = true, features = ["std", "sink"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 tracing = { workspace = true }
 

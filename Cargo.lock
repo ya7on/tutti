@@ -705,14 +705,12 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
- "futures",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "tutti-config",
  "tutti-daemon",
  "tutti-transport",
- "tutti-types",
 ]
 
 [[package]]
@@ -730,16 +728,13 @@ name = "tutti-core"
 version = "0.1.5"
 dependencies = [
  "async-trait",
- "colored",
  "futures",
- "futures-core",
  "libc",
  "thiserror",
  "tokio",
  "tokio-stream",
  "tokio-util",
  "tracing",
- "tutti-config",
  "tutti-types",
 ]
 
@@ -764,7 +759,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "tokio-stream",
  "tokio-util",
  "tracing",
  "tutti-types",

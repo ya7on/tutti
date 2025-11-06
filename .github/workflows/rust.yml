@@ -10,12 +10,44 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test-linux:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cache cargo tools
+        uses: actions/cache@v4
+        id: cache-cargo-tools
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-tools-v1
+      - name: Install cargo-binstall
+        if: steps.cache-cargo-tools.outputs.cache-hit != 'true'
+        run: cargo install cargo-binstall --locked
+      - name: Install cargo tools via binstall
+        run: |
+          cargo binstall -y cargo-deny cargo-audit cargo-machete
+
+      - run: cargo build --workspace --all-targets --all-features --verbose
+      - run: cargo clippy --workspace --bins --lib --all-features -- -D warnings
+
+      - run: cargo fmt --all -- --check
+      - run: cargo test --workspace --all-features --verbose
+      - run: cargo deny --all-features check
+      - run: cargo audit
+      - run: cargo machete
+
+  linux-beta:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: [stable, beta, nightly]
-    continue-on-error: ${{ matrix.rust == 'nightly' }}
+        rust: [beta, nightly]
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
@@ -25,6 +57,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - run: cargo build --workspace --all-targets --all-features --verbose
-      - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --bins --lib --all-features -- -D warnings
-      - run: cargo test --workspace --all-features --verbose

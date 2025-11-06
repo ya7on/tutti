@@ -5,12 +5,11 @@ repository = "https://github.com/ya7on/tutti"
 version = "0.1.5"
 edition.workspace = true
 license.workspace = true
+rust-version = "1.82.0"
 
 [dependencies]
 async-trait = { workspace = true }
-colored = { workspace = true }
 futures = { workspace = true }
-futures-core = { workspace = true }
 libc = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -18,7 +17,6 @@ tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["io"] }
 tracing = { workspace = true }
 
-tutti-config = { version = "0.1.5", path = "../tutti-config", default-features = false }
 tutti-types = { version = "0.1.5", path = "../tutti-types", default-features = false }
 
 [lints]
