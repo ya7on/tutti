@@ -29,7 +29,7 @@ jobs:
         run: |
           cargo llvm-cov --workspace --locked --verbose --lcov --output-path lcov.info
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: lcov
           path: lcov.info
