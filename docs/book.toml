@@ -1,9 +1,7 @@
 [book]
 title = "Tutti Documentation"
-author = "ya7on"
 description = "Lightweight CLI for orchestrating local microservices"
 language = "en"
-multilingual = false
 src = "."
 
 [build]
@@ -12,6 +10,5 @@ build-dir = "book"
 [output.html]
 default-theme = "light"
 preferred-dark-theme = "navy"
-curly-quotes = true
 git-repository-url = "https://github.com/ya7on/tutti"
 site-url = "/tutti/"
