@@ -22,7 +22,7 @@ thiserror = { version = "2" }
 tokio = { version = ">=1.23.1, <2", features = ["full"] }
 tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7", features = ["io"] }
-toml = { version = "0.9" }
+toml = { version = "1.0" }
 tracing = { version = "0.1" }
 tracing-subscriber = { version = "0.3" }
 
